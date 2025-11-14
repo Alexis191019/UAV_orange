@@ -1,0 +1,20 @@
+Para crear el hotspot en la orange pi 5 pro se deben ejecutar los siguientes comandos:
+
+nmcli connection modify RC-Hotspot wifi.band bg
+nmcli connection modify RC-Hotspot 802-11-wireless.channel 6
+nmcli connection modify RC-Hotspot 802-11-wireless-security.key-mgmt wpa-psk
+nmcli connection modify RC-Hotspot 802-11-wireless-security.psk 12345678
+nmcli connection modify RC-Hotspot ipv4.method shared
+
+- nmcli connection modify RC-Hotspot wifi.band bg
+Ajusta la banda de la red Wi-Fi a 2.4 GHz. NetworkManager usa bg para indicar “bandas b/g”, es decir, el espectro de 2.4 GHz.
+- nmcli connection modify RC-Hotspot 802-11-wireless.channel 6
+Fija el hotspot en el canal 6 (dentro de 2.4 GHz). Ayuda a evitar que el sistema salte de canal automáticamente.
+- nmcli connection modify RC-Hotspot 802-11-wireless-security.key-mgmt wpa-psk
+Define que la seguridad del hotspot será WPA/WPA2 con contraseña compartida (PSK). Evita que se intente usar 802.1X o métodos corporativos.
+- nmcli connection modify RC-Hotspot 802-11-wireless-security.psk 12345678
+Asigna la contraseña (la clave precompartida) que deberán introducir los clientes al conectarse al hotspot.
+- nmcli connection modify RC-Hotspot ipv4.method shared
+Activa el modo “shared”: NetworkManager levanta DHCP y NAT para que los dispositivos conectados al hotspot obtengan IP de la Orange y 
+puedan usar su salida a internet si la tiene (ideal para crear un punto de acceso autónomo).
+

@@ -1,0 +1,7 @@
+Aqui dejamos detalles de los modelos que se encuentran en la carpeta models y que hacen cada uno.
+primero irá el nombre del modelo y luego que hace cada uno con docuemntación si es necesario.
+
+Visdrone_yolo11n.pt= Este modelo está entrenado en visdrone que es un dataset que tiene imágenes de objetos desde la vista de un drone.
+                    Se divide en 11 clases, desde personas, gente caminando, autos, camiones,etc. mas info podemos obtenerla en la 
+                    página del dataset (https://github.com/VisDrone/VisDrone-Dataset) seguimos el tutorial de ultralitycs (https://docs.ultralytics.com/es/datasets/detect/visdrone/)
+                    se entrenó en la versión de yolo11n
