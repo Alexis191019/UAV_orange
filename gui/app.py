@@ -8,7 +8,7 @@ from PIL import Image, ImageTk
 import customtkinter as ctk
 
 from src import config
-from src.hotspot import levantar_hotspot, bajar_hotspot, conexion_hotspot_activa
+from src.hotspot import levantar_hotspot, bajar_hotspot, conexion_hotspot_activa, obtener_ip_hotspot
 from src.mediamtx import iniciar_mediamtx, detener_mediamtx
 from src.video import abrir_stream, lector_frames, crear_writer
 from src.detector import DetectorYOLO
@@ -199,13 +199,25 @@ class DeteccionUAVApp(ctk.CTk):
             
             # Levantar hotspot
             levantar_hotspot()
-            self.after(0, lambda: self.hotspot_status.configure(text="Hotspot: Activo"))
+            
+            # Obtener IP del hotspot y actualizar estado
+            ip_hotspot = obtener_ip_hotspot()
+            if ip_hotspot:
+                hotspot_text = f"Hotspot: {config.HOTSPOT_NAME} - IP: {ip_hotspot}"
+                rtmp_url = f"rtmp://{ip_hotspot}:1935/live/dron"
+                mediamtx_text = f"MediaMTX: Transmitir a: {rtmp_url}"
+            else:
+                hotspot_text = f"Hotspot: {config.HOTSPOT_NAME} - Activo"
+                mediamtx_text = "MediaMTX: IP: 127.0.0.1:1935"
+            
+            self.after(0, lambda: self.hotspot_status.configure(text=hotspot_text))
             
             # Iniciar MediaMTX
             self.after(0, lambda: self.mediamtx_status.configure(text="MediaMTX: Iniciando..."))
             try:
                 self.mediamtx_proc = iniciar_mediamtx()
-                self.after(0, lambda: self.mediamtx_status.configure(text="MediaMTX: Activo"))
+                # Actualizar con la URL RTMP completa
+                self.after(0, lambda: self.mediamtx_status.configure(text=mediamtx_text))
             except Exception as exc:
                 print(f"[ERROR] No se pudo iniciar MediaMTX: {exc}")
                 self.after(0, lambda: self.mediamtx_status.configure(

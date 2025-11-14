@@ -80,3 +80,43 @@ def bajar_hotspot():
     except Exception as exc:
         print(f"[WARN] No se pudo bajar el hotspot: {exc}")
 
+
+def obtener_ip_hotspot():
+    """Obtiene la IP del hotspot WiFi.
+    
+    Returns:
+        str: IP del hotspot (ej: "192.168.1.1") o None si no se puede obtener
+    """
+    try:
+        # Obtener la IP de la interfaz del hotspot
+        resultado = subprocess.run(
+            ["nmcli", "-t", "-f", "IP4.ADDRESS", "connection", "show", config.HOTSPOT_NAME],
+            capture_output=True,
+            text=True
+        )
+        if resultado.returncode == 0 and resultado.stdout.strip():
+            # El formato es: IP/MASK, solo necesitamos la IP
+            ip_line = resultado.stdout.strip().splitlines()[0]
+            ip = ip_line.split('/')[0]
+            return ip
+    except Exception as exc:
+        print(f"[WARN] No se pudo obtener IP del hotspot: {exc}")
+    
+    # Intentar método alternativo: obtener IP de la interfaz
+    try:
+        resultado = subprocess.run(
+            ["ip", "addr", "show", config.HOTSPOT_IFACE],
+            capture_output=True,
+            text=True
+        )
+        if resultado.returncode == 0:
+            for line in resultado.stdout.splitlines():
+                if "inet " in line and "127.0.0.1" not in line:
+                    # Extraer IP (formato: inet 192.168.1.1/24)
+                    ip = line.split()[1].split('/')[0]
+                    return ip
+    except Exception as exc:
+        print(f"[WARN] No se pudo obtener IP por método alternativo: {exc}")
+    
+    return None
+
