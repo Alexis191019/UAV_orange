@@ -34,12 +34,22 @@ ENV/
 *.swo
 *~
 
-# Archivos de video de prueba (opcional - comenta si quieres subirlos)
-Videos_test/*.mp4
+# Archivos de video de prueba
+Videos_test/
 
-# Modelos grandes (comenta si quieres subirlos)
-# models/*.pt
-# models/*.rknn
+# Modelos grandes (no subir)
+models/
+
+# MediaMTX (no subir, se instala por separado)
+mediaMTX/
+
+# Archivos antiguos/backup
+main_all.py
+main.py
+manual_inference.py
+inference_test.py
+crear_hotspot.txt
+docs/
 
 # Logs
 *.log
