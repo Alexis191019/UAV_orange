@@ -274,7 +274,7 @@ class DeteccionUAVApp(ctk.CTk):
         annotated = frame.copy()
         
         if self.inferir and self.detector:
-            annotated, elapsed = self.detector.detectar(frame)
+            annotated, elapsed, _ = self.detector.detectar(frame)  # Ignoramos clases_detectadas por ahora
             fps_actual = 1.0 / elapsed if elapsed > 0 else 0.0
             self.fps_hist.append(fps_actual)
             if len(self.fps_hist) > 30:

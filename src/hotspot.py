@@ -24,7 +24,15 @@ def conexion_hotspot_activa():
 
 
 def levantar_hotspot():
-    """Activa el hotspot WiFi con reintentos automáticos."""
+    """Activa el hotspot WiFi con reintentos automáticos.
+    
+    Si el hotspot ya está activo, no hace nada y retorna inmediatamente.
+    """
+    # Verificar primero si ya está activo
+    if conexion_hotspot_activa():
+        print("[INFO] Hotspot ya está activo, reutilizando conexión existente.")
+        return
+    
     print("[INFO] Reiniciando radio WiFi…")
     try:
         ejecutar(["nmcli", "radio", "wifi", "off"], "Apagando radio WiFi")

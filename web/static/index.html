@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Detección UAV - Sistema RTMP</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🚁 Detección UAV - Sistema RTMP</h1>
+        </header>
+
+        <div class="main-content">
+            <!-- Panel izquierdo: Video -->
+            <div class="video-panel">
+                <h2>Video en Tiempo Real</h2>
+                <div class="video-container">
+                    <img id="video-frame" src="" alt="Video stream" />
+                    <div id="video-placeholder">Esperando conexión...</div>
+                </div>
+                
+                <!-- Panel de detecciones -->
+                <div class="detections-panel">
+                    <h3>Detecciones</h3>
+                    <div id="detections-content">Esperando inferencia...</div>
+                </div>
+            </div>
+
+            <!-- Panel derecho: Controles -->
+            <div class="control-panel">
+                <h2>Controles</h2>
+                
+                <!-- Botón de inferencia -->
+                <button id="btn-inferencia" class="btn btn-primary" disabled>
+                    Iniciar Inferencia
+                </button>
+
+                <hr>
+
+                <!-- Métricas -->
+                <div class="metrics-section">
+                    <h3>Métricas</h3>
+                    <div class="metric">
+                        <span class="label">FPS:</span>
+                        <span id="fps-value">--</span>
+                    </div>
+                    <div class="metric">
+                        <span class="label">FPS Promedio:</span>
+                        <span id="fps-avg-value">--</span>
+                    </div>
+                    <div class="metric">
+                        <span class="label">Frames:</span>
+                        <span id="frames-value">0</span>
+                    </div>
+                </div>
+
+                <hr>
+
+                <!-- Estado del sistema -->
+                <div class="status-section">
+                    <h3>Estado del Sistema</h3>
+                    <div class="status-item">
+                        <span class="label">Hotspot:</span>
+                        <span id="hotspot-status">Verificando...</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="label">MediaMTX:</span>
+                        <span id="mediamtx-status">Verificando...</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="label">Stream RTMP:</span>
+                        <span id="stream-status">Desconectado</span>
+                    </div>
+                </div>
+
+                <hr>
+
+                <!-- Botón de hotspot -->
+                <button id="btn-hotspot" class="btn btn-secondary" disabled>
+                    Desactivar Hotspot
+                </button>
+
+                <!-- Estado de conexión -->
+                <div id="connection-status" class="connection-status">
+                    <span class="status-dot"></span>
+                    <span>Desconectado</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="/static/app.js"></script>
+</body>
+</html>
+
