@@ -124,6 +124,7 @@ def conectar_rtmp_en_background():
                     print("[OK] Stream RTMP conectado exitosamente")
                     
                     # Iniciar hilo lector
+                    global lector_thread
                     lector_thread = threading.Thread(
                         target=lector_frames,
                         args=(cap, frame_queue, stop_event),
@@ -131,6 +132,7 @@ def conectar_rtmp_en_background():
                     )
                     lector_thread.start()
                     print("[OK] Lector de frames iniciado")
+                    print(f"[DEBUG] Frame queue size: {frame_queue.qsize()}")
                     break  # Salir del loop, conexión exitosa
                 else:
                     # No hay frames, cerrar y reintentar
@@ -173,7 +175,11 @@ def process_and_stream():
                 })
                 continue
             
-            frame = frame_queue.get(timeout=0.1)
+            try:
+                frame = frame_queue.get(timeout=0.1)
+            except queue.Empty:
+                # No hay frames disponibles, continuar
+                continue
             
             if inferir and detector is not None:
                 annotated, elapsed, clases_detectadas = detector.detectar(frame)
@@ -209,10 +215,14 @@ def process_and_stream():
                 'frames': frame_count
             })
             
-        except queue.Empty:
-            continue
+            # Debug: mostrar cada 30 frames que se están enviando
+            if frame_count % 30 == 0:
+                print(f"[DEBUG] Enviando frame #{frame_count} - FPS: {round(fps_actual, 1)}, Queue size: {frame_queue.qsize()}")
+            
         except Exception as exc:
             print(f"[WARN] Error en procesamiento de frame: {exc}")
+            import traceback
+            traceback.print_exc()
             time.sleep(0.1)
 
 
@@ -310,6 +320,7 @@ def toggle_hotspot():
 def handle_connect():
     """Maneja la conexión de un cliente WebSocket."""
     print(f"[INFO] Cliente WebSocket conectado: {request.remote_addr}")
+    print(f"[DEBUG] Estado del sistema - cap: {cap is not None}, detector: {detector is not None}, frame_queue size: {frame_queue.qsize()}")
     emit('connected', {'message': 'Conectado al servidor'})
 
 
