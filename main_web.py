@@ -4,7 +4,7 @@
 if __name__ == '__main__':
     from web.backend import (
         app, socketio, inicializar_sistema, cleanup, 
-        process_and_stream, stop_event
+        process_and_stream, conectar_rtmp_en_background
     )
     import threading
     import sys
@@ -12,8 +12,12 @@ if __name__ == '__main__':
     from src import config
     
     try:
-        # Inicializar sistema
+        # Inicializar sistema (hotspot, MediaMTX, modelo - sin RTMP)
         inicializar_sistema()
+        
+        # Iniciar hilo de conexión RTMP en segundo plano
+        rtmp_thread = threading.Thread(target=conectar_rtmp_en_background, daemon=True)
+        rtmp_thread.start()
         
         # Iniciar hilo de procesamiento y streaming
         stream_thread = threading.Thread(target=process_and_stream, daemon=True)
@@ -31,9 +35,10 @@ if __name__ == '__main__':
             print(f"[INFO] Accede desde la tablet: http://{ip_hotspot}:5000")
             print(f"[INFO] (Conecta la tablet al hotspot '{config.HOTSPOT_NAME}')")
         print(f"[INFO] Acceso local: http://127.0.0.1:5000")
+        print("[INFO] El servidor está intentando conectar RTMP en segundo plano...")
         print("="*60 + "\n")
         
-        # Iniciar servidor Flask
+        # Iniciar servidor Flask (esto se ejecuta inmediatamente)
         socketio.run(app, host='0.0.0.0', port=5000, debug=False)
         
     except KeyboardInterrupt:

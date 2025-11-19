@@ -39,8 +39,8 @@ frame_count = 0
 
 
 def inicializar_sistema():
-    """Inicializa el sistema: hotspot, MediaMTX, modelo y stream."""
-    global detector, cap, mediamtx_proc
+    """Inicializa el sistema: hotspot, MediaMTX y modelo (sin RTMP)."""
+    global detector, mediamtx_proc
     
     try:
         print("[INFO] Inicializando sistema...")
@@ -89,47 +89,68 @@ def inicializar_sistema():
             print("[INFO] El servidor funcionará en modo demo (sin inferencia)")
             detector = None  # Continuar sin modelo
         
-        # Abrir stream (con timeout para no bloquear)
-        print("[INFO] Conectando a stream RTMP...")
-        # Intentar conectar con timeout
-        cap = None
-        max_intentos = 3  # Solo intentar 3 veces antes de continuar
-        for intento in range(max_intentos):
-            try:
-                cap = cv2.VideoCapture(config.RTMP_URL)
-                if cap.isOpened():
-                    cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
-                    print("[OK] Stream RTMP conectado")
-                    # Iniciar hilo lector solo si hay stream
-                    global lector_thread
-                    lector_thread = threading.Thread(
-                        target=lector_frames,
-                        args=(cap, frame_queue, stop_event),
-                        daemon=True
-                    )
-                    lector_thread.start()
-                    break
-                else:
-                    cap.release()
-                    cap = None
-            except Exception as exc:
-                print(f"[WARN] Error al conectar RTMP (intento {intento + 1}): {exc}")
-            
-            if intento < max_intentos - 1:
-                time.sleep(2)  # Esperar 2 segundos entre intentos
-        
-        if cap is None:
-            print("[WARN] No se pudo conectar al stream RTMP después de varios intentos")
-            print("[INFO] El servidor web funcionará, pero no habrá video hasta que se conecte el stream")
-            print("[INFO] Puedes conectar el stream más tarde y se detectará automáticamente")
-        
-        print("[OK] Sistema inicializado correctamente")
+        print("[OK] Sistema inicializado (servicios básicos listos)")
+        print("[INFO] La conexión RTMP se intentará en segundo plano...")
         
     except Exception as exc:
         print(f"[ERROR] Error en inicialización: {exc}")
         import traceback
         traceback.print_exc()
         raise
+
+
+def conectar_rtmp_en_background():
+    """Intenta conectar al stream RTMP en segundo plano (hilo continuo)."""
+    global cap, lector_thread
+    
+    print("[INFO] Iniciando conexión RTMP en segundo plano...")
+    intento = 0
+    
+    while not stop_event.is_set():
+        try:
+            intento += 1
+            print(f"[INFO] Intentando conectar RTMP (intento {intento})...")
+            
+            # Intentar conectar
+            temp_cap = cv2.VideoCapture(config.RTMP_URL)
+            if temp_cap.isOpened():
+                # Verificar que realmente esté recibiendo frames
+                temp_cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+                ret, test_frame = temp_cap.read()
+                
+                if ret and test_frame is not None:
+                    # Conexión exitosa
+                    cap = temp_cap
+                    print("[OK] Stream RTMP conectado exitosamente")
+                    
+                    # Iniciar hilo lector
+                    lector_thread = threading.Thread(
+                        target=lector_frames,
+                        args=(cap, frame_queue, stop_event),
+                        daemon=True
+                    )
+                    lector_thread.start()
+                    print("[OK] Lector de frames iniciado")
+                    break  # Salir del loop, conexión exitosa
+                else:
+                    # No hay frames, cerrar y reintentar
+                    temp_cap.release()
+                    print(f"[WARN] RTMP conectado pero sin frames, reintentando...")
+            else:
+                # No se pudo abrir, cerrar y reintentar
+                temp_cap.release()
+                print(f"[WARN] No se pudo abrir stream RTMP")
+            
+        except Exception as exc:
+            print(f"[WARN] Error al conectar RTMP (intento {intento}): {exc}")
+        
+        # Esperar antes del siguiente intento (aumentar tiempo progresivamente)
+        wait_time = min(3 + (intento * 0.5), 10)  # Entre 3 y 10 segundos
+        if not stop_event.wait(wait_time):  # Esperar con posibilidad de cancelación
+            continue
+    
+    if cap is None and not stop_event.is_set():
+        print("[WARN] Conexión RTMP cancelada (servidor deteniéndose)")
 
 
 def process_and_stream():
@@ -305,8 +326,12 @@ def cleanup():
 
 if __name__ == '__main__':
     try:
-        # Inicializar sistema
+        # Inicializar sistema (hotspot, MediaMTX, modelo - sin RTMP)
         inicializar_sistema()
+        
+        # Iniciar hilo de conexión RTMP en segundo plano
+        rtmp_thread = threading.Thread(target=conectar_rtmp_en_background, daemon=True)
+        rtmp_thread.start()
         
         # Iniciar hilo de procesamiento y streaming
         stream_thread = threading.Thread(target=process_and_stream, daemon=True)
@@ -324,9 +349,10 @@ if __name__ == '__main__':
             print(f"[INFO] Accede desde la tablet: http://{ip_hotspot}:5000")
             print(f"[INFO] (Conecta la tablet al hotspot '{config.HOTSPOT_NAME}')")
         print(f"[INFO] Acceso local: http://127.0.0.1:5000")
+        print("[INFO] El servidor está intentando conectar RTMP en segundo plano...")
         print("="*60 + "\n")
         
-        # Iniciar servidor Flask
+        # Iniciar servidor Flask (esto se ejecuta inmediatamente)
         socketio.run(app, host='0.0.0.0', port=5000, debug=False)
         
     except KeyboardInterrupt:
