@@ -103,10 +103,19 @@ def obtener_ip_hotspot():
             text=True
         )
         if resultado.returncode == 0 and resultado.stdout.strip():
-            # El formato es: IP/MASK, solo necesitamos la IP
+            # El formato puede ser:
+            # - "192.168.1.1/24" (simple)
+            # - "IP4.ADDRESS[1]:192.168.1.1/24" (con prefijo)
             ip_line = resultado.stdout.strip().splitlines()[0]
-            ip = ip_line.split('/')[0]
-            return ip
+            
+            # Si tiene el prefijo "IP4.ADDRESS[1]:" o similar, extraer solo la parte después de ":"
+            if ":" in ip_line:
+                ip_line = ip_line.split(":", 1)[1]
+            
+            # Extraer IP (antes del "/" si hay máscara)
+            ip = ip_line.split('/')[0].strip()
+            if ip:
+                return ip
     except Exception as exc:
         print(f"[WARN] No se pudo obtener IP del hotspot: {exc}")
     

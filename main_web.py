@@ -48,9 +48,13 @@ if __name__ == '__main__':
             if ip_hotspot != "127.0.0.1":
                 print(f"[INFO] Acceso por hotspot '{config.HOTSPOT_NAME}': http://{ip_hotspot}:5000")
                 print(f"[INFO]   → Conecta tu PC/tablet al WiFi '{config.HOTSPOT_NAME}'")
+                print(f"[INFO] URL RTMP para transmitir: rtmp://{ip_hotspot}:1935/live/dron")
             if ip_local and ip_local != ip_hotspot:
                 print(f"[INFO] Acceso por red local: http://{ip_local}:5000")
                 print(f"[INFO]   → Conecta tu PC a la misma red WiFi/Ethernet que la Orange Pi")
+                print(f"[INFO] URL RTMP para transmitir (red local): rtmp://{ip_local}:1935/live/dron")
+        else:
+            print(f"[INFO] URL RTMP para transmitir: rtmp://127.0.0.1:1935/live/dron")
         print("[INFO] El servidor está intentando conectar RTMP en segundo plano...")
         print("="*60 + "\n")
         

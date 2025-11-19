@@ -252,6 +252,22 @@ def get_status():
     ip_hotspot = obtener_ip_hotspot()
     hotspot_activo = conexion_hotspot_activa()
     
+    # Obtener IP local si está disponible
+    ip_local = None
+    if sys.platform != "win32":
+        try:
+            import socket
+            s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            s.connect(("8.8.8.8", 80))
+            ip_local = s.getsockname()[0]
+            s.close()
+        except Exception:
+            pass
+    
+    # Determinar URL RTMP (preferir hotspot, luego local, luego localhost)
+    rtmp_ip = ip_hotspot if ip_hotspot and ip_hotspot != "127.0.0.1" else (ip_local if ip_local else "127.0.0.1")
+    rtmp_url = f"rtmp://{rtmp_ip}:1935/live/dron"
+    
     return jsonify({
         "inference": inferir,
         "model_loaded": detector is not None,
@@ -259,7 +275,9 @@ def get_status():
         "hotspot_active": hotspot_activo,
         "hotspot_ip": ip_hotspot,
         "hotspot_name": config.HOTSPOT_NAME if hotspot_activo else None,
-        "rtmp_url": f"rtmp://{ip_hotspot}:1935/live/dron" if ip_hotspot else None,
+        "rtmp_url": rtmp_url,
+        "rtmp_url_hotspot": f"rtmp://{ip_hotspot}:1935/live/dron" if ip_hotspot and ip_hotspot != "127.0.0.1" else None,
+        "rtmp_url_local": f"rtmp://{ip_local}:1935/live/dron" if ip_local and ip_local != ip_hotspot else None,
         "fps_actual": round(fps_hist[-1], 1) if fps_hist else 0,
         "fps_promedio": round(sum(fps_hist) / len(fps_hist), 1) if fps_hist else 0,
         "frames": frame_count
@@ -362,9 +380,13 @@ if __name__ == '__main__':
             if ip_hotspot != "127.0.0.1":
                 print(f"[INFO] Acceso por hotspot '{config.HOTSPOT_NAME}': http://{ip_hotspot}:5000")
                 print(f"[INFO]   → Conecta tu PC/tablet al WiFi '{config.HOTSPOT_NAME}'")
+                print(f"[INFO] URL RTMP para transmitir: rtmp://{ip_hotspot}:1935/live/dron")
             if ip_local and ip_local != ip_hotspot:
                 print(f"[INFO] Acceso por red local: http://{ip_local}:5000")
                 print(f"[INFO]   → Conecta tu PC a la misma red WiFi/Ethernet que la Orange Pi")
+                print(f"[INFO] URL RTMP para transmitir (red local): rtmp://{ip_local}:1935/live/dron")
+        else:
+            print(f"[INFO] URL RTMP para transmitir: rtmp://127.0.0.1:1935/live/dron")
         print("[INFO] El servidor está intentando conectar RTMP en segundo plano...")
         print("="*60 + "\n")
         
