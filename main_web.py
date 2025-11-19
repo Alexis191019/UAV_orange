@@ -23,18 +23,34 @@ if __name__ == '__main__':
         stream_thread = threading.Thread(target=process_and_stream, daemon=True)
         stream_thread.start()
         
-        # Obtener IP del hotspot para mostrar en consola
+        # Obtener IPs disponibles para mostrar en consola
         if sys.platform != "win32":
             ip_hotspot = obtener_ip_hotspot() or "127.0.0.1"
+            # Obtener IP local (ethernet/wifi) si está disponible
+            ip_local = None
+            try:
+                import socket
+                # Conectar a un servidor externo para obtener la IP local
+                s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+                s.connect(("8.8.8.8", 80))
+                ip_local = s.getsockname()[0]
+                s.close()
+            except Exception:
+                pass
         else:
             ip_hotspot = "127.0.0.1"
+            ip_local = None
         
         print("\n" + "="*60)
         print("[OK] Servidor web iniciado")
-        if sys.platform != "win32" and ip_hotspot != "127.0.0.1":
-            print(f"[INFO] Accede desde la tablet: http://{ip_hotspot}:5000")
-            print(f"[INFO] (Conecta la tablet al hotspot '{config.HOTSPOT_NAME}')")
-        print(f"[INFO] Acceso local: http://127.0.0.1:5000")
+        print(f"[INFO] Acceso local (mismo dispositivo): http://127.0.0.1:5000")
+        if sys.platform != "win32":
+            if ip_hotspot != "127.0.0.1":
+                print(f"[INFO] Acceso por hotspot '{config.HOTSPOT_NAME}': http://{ip_hotspot}:5000")
+                print(f"[INFO]   → Conecta tu PC/tablet al WiFi '{config.HOTSPOT_NAME}'")
+            if ip_local and ip_local != ip_hotspot:
+                print(f"[INFO] Acceso por red local: http://{ip_local}:5000")
+                print(f"[INFO]   → Conecta tu PC a la misma red WiFi/Ethernet que la Orange Pi")
         print("[INFO] El servidor está intentando conectar RTMP en segundo plano...")
         print("="*60 + "\n")
         
