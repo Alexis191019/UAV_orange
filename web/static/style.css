@@ -51,18 +51,21 @@ header h1 {
 .video-container {
     position: relative;
     width: 100%;
+    aspect-ratio: 4 / 3;  /* Mantiene proporción 4:3 constante (640x480) */
     background: #000;
     border-radius: 10px;
     overflow: hidden;
     margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 #video-frame {
     width: 100%;
-    height: auto;
+    height: 100%;
     display: block;
-    min-height: 360px;
-    object-fit: contain;
+    object-fit: contain;  /* Mantiene proporción sin recortar */
 }
 
 #video-placeholder {
@@ -73,6 +76,7 @@ header h1 {
     color: #888;
     font-size: 1.2em;
     pointer-events: none;
+    z-index: 1;  /* Asegurar que esté sobre el fondo */
 }
 
 .detections-panel {
