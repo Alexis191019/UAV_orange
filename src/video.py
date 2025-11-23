@@ -33,6 +33,10 @@ def lector_frames(cap, cola, stop_event):
     incluso si la inferencia es lenta. Los frames intermedios se descartan
     para evitar que el buffer de OpenCV se llene y cause timeouts.
     
+    Si detecta que la conexión se perdió (cap.read() falla repetidamente o
+    cap.isOpened() retorna False), termina el hilo para que el monitor
+    de conexión pueda reconectar.
+    
     Args:
         cap: Objeto cv2.VideoCapture
         cola: queue.Queue para almacenar frames
@@ -41,14 +45,27 @@ def lector_frames(cap, cola, stop_event):
     print("[INFO] Hilo lector iniciado.")
     frames_leidos = 0
     frames_descartados = 0
+    errores_consecutivos = 0
+    max_errores_consecutivos = 30  # Si falla 30 veces seguidas, considerar desconectado
     
     while not stop_event.is_set():
         try:
+            # Verificar que la conexión sigue activa
+            if not cap.isOpened():
+                print("[WARN] Conexión RTMP cerrada inesperadamente")
+                break
+            
             ret, frame = cap.read()
             if not ret:
-                time.sleep(0.01)
+                errores_consecutivos += 1
+                if errores_consecutivos >= max_errores_consecutivos:
+                    print(f"[WARN] No se recibieron frames en {max_errores_consecutivos} intentos. Conexión perdida.")
+                    break
+                time.sleep(0.1)
                 continue
 
+            # Frame leído exitosamente, resetear contador de errores
+            errores_consecutivos = 0
             frames_leidos += 1
             
             try:
@@ -70,10 +87,21 @@ def lector_frames(cap, cola, stop_event):
                     pass
                 
         except Exception as exc:
+            errores_consecutivos += 1
             print(f"[WARN] Error en lector de frames: {exc}")
+            if errores_consecutivos >= max_errores_consecutivos:
+                print(f"[WARN] Demasiados errores consecutivos. Conexión perdida.")
+                break
             time.sleep(0.1)
             continue
 
+    # Cerrar la conexión antes de salir
+    try:
+        if cap.isOpened():
+            cap.release()
+    except Exception:
+        pass
+    
     print(f"[INFO] Hilo lector detenido. Frames leídos: {frames_leidos}, descartados: {frames_descartados}")
 
 

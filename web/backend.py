@@ -107,59 +107,122 @@ def inicializar_sistema():
 
 
 def conectar_rtmp_en_background():
-    """Intenta conectar al stream RTMP en segundo plano (hilo continuo)."""
+    """Monitorea y mantiene la conexión RTMP activa, reconectando automáticamente si se pierde.
+    
+    Esta función intenta reconectar indefinidamente (sin límite de intentos) hasta que:
+    - Se establezca una conexión exitosa, o
+    - Se detenga el servidor (stop_event activado)
+    
+    Si otro dispositivo se conecta mientras estamos intentando reconectar, MediaMTX lo aceptará
+    y este código lo detectará en el siguiente intento (cada 1-3 segundos dependiendo del número de intentos).
+    """
     global cap, lector_thread
     
-    print("[INFO] Iniciando conexión RTMP en segundo plano...")
+    print("[INFO] Iniciando monitor de conexión RTMP en segundo plano...")
+    print("[INFO] El sistema intentará reconectar indefinidamente hasta que se establezca una conexión.")
     intento = 0
+    ultima_conexion_exitosa = False
     
     while not stop_event.is_set():
         try:
-            intento += 1
-            print(f"[INFO] Intentando conectar RTMP (intento {intento})...")
+            # Verificar si necesitamos conectar o reconectar
+            necesita_conexion = (
+                cap is None or 
+                not cap.isOpened() or
+                (lector_thread is not None and not lector_thread.is_alive())
+            )
             
-            # Intentar conectar
-            temp_cap = cv2.VideoCapture(config.RTMP_URL)
-            if temp_cap.isOpened():
-                # Verificar que realmente esté recibiendo frames
-                temp_cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
-                ret, test_frame = temp_cap.read()
+            if necesita_conexion:
+                # Limpiar conexión anterior si existe
+                if cap is not None:
+                    try:
+                        cap.release()
+                    except Exception:
+                        pass
+                    cap = None
                 
-                if ret and test_frame is not None:
-                    # Conexión exitosa
-                    cap = temp_cap
-                    print("[OK] Stream RTMP conectado exitosamente")
-                    
-                    # Iniciar hilo lector
-                    global lector_thread
-                    lector_thread = threading.Thread(
-                        target=lector_frames,
-                        args=(cap, frame_queue, stop_event),
-                        daemon=True
-                    )
-                    lector_thread.start()
-                    print("[OK] Lector de frames iniciado")
-                    print(f"[DEBUG] Frame queue size: {frame_queue.qsize()}")
-                    break  # Salir del loop, conexión exitosa
+                # Limpiar el hilo lector anterior si existe
+                if lector_thread is not None and not lector_thread.is_alive():
+                    lector_thread = None
+                
+                intento += 1
+                if ultima_conexion_exitosa:
+                    print(f"[WARN] Conexión RTMP perdida. Intentando reconectar (intento {intento})...")
                 else:
-                    # No hay frames, cerrar y reintentar
+                    print(f"[INFO] Intentando conectar RTMP (intento {intento})...")
+                
+                # Intentar conectar
+                temp_cap = cv2.VideoCapture(config.RTMP_URL)
+                if temp_cap.isOpened():
+                    # Verificar que realmente esté recibiendo frames
+                    temp_cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+                    ret, test_frame = temp_cap.read()
+                    
+                    if ret and test_frame is not None:
+                        # Conexión exitosa
+                        cap = temp_cap
+                        print("[OK] Stream RTMP conectado exitosamente")
+                        
+                        # Iniciar hilo lector
+                        lector_thread = threading.Thread(
+                            target=lector_frames,
+                            args=(cap, frame_queue, stop_event),
+                            daemon=True
+                        )
+                        lector_thread.start()
+                        print("[OK] Lector de frames iniciado")
+                        print(f"[DEBUG] Frame queue size: {frame_queue.qsize()}")
+                        
+                        ultima_conexion_exitosa = True
+                        intento = 0  # Resetear contador de intentos
+                        
+                        # Esperar un poco antes de verificar de nuevo
+                        time.sleep(2.0)
+                        continue
+                    else:
+                        # No hay frames, cerrar y reintentar
+                        temp_cap.release()
+                        print(f"[WARN] RTMP conectado pero sin frames, reintentando...")
+                else:
+                    # No se pudo abrir, cerrar y reintentar
                     temp_cap.release()
-                    print(f"[WARN] RTMP conectado pero sin frames, reintentando...")
+                    print(f"[WARN] No se pudo abrir stream RTMP")
+                
+                ultima_conexion_exitosa = False
+                
+                # Esperar antes del siguiente intento
+                # Usar tiempo corto (1-2s) para detectar rápidamente nuevas conexiones
+                # pero aumentar ligeramente después de muchos intentos para no saturar
+                if intento <= 5:
+                    wait_time = 1.0  # Primeros 5 intentos: cada 1 segundo (rápido)
+                elif intento <= 15:
+                    wait_time = 2.0  # Siguientes 10 intentos: cada 2 segundos
+                else:
+                    wait_time = 3.0  # Después: cada 3 segundos (no saturar)
+                
+                if stop_event.wait(wait_time):  # Si se activó stop_event, salir
+                    break
             else:
-                # No se pudo abrir, cerrar y reintentar
-                temp_cap.release()
-                print(f"[WARN] No se pudo abrir stream RTMP")
-            
+                # Conexión activa, verificar periódicamente
+                time.sleep(2.0)
+                
         except Exception as exc:
-            print(f"[WARN] Error al conectar RTMP (intento {intento}): {exc}")
-        
-        # Esperar antes del siguiente intento (aumentar tiempo progresivamente)
-        wait_time = min(3 + (intento * 0.5), 10)  # Entre 3 y 10 segundos
-        if not stop_event.wait(wait_time):  # Esperar con posibilidad de cancelación
-            continue
+            print(f"[WARN] Error en monitor RTMP (intento {intento}): {exc}")
+            ultima_conexion_exitosa = False
+            if cap is not None:
+                try:
+                    cap.release()
+                except Exception:
+                    pass
+                cap = None
+            time.sleep(3.0)
     
-    if cap is None and not stop_event.is_set():
-        print("[WARN] Conexión RTMP cancelada (servidor deteniéndose)")
+    if cap is not None:
+        try:
+            cap.release()
+        except Exception:
+            pass
+    print("[INFO] Monitor de conexión RTMP detenido")
 
 
 def process_and_stream():
