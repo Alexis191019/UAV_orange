@@ -1,9 +1,12 @@
 // Conexión WebSocket
 const socket = io();
 
+
+
 // Estado de la aplicación
 let inferenceActive = false;
 let statusInterval = null;
+let currentModel = 'uav';
 
 // Elementos del DOM
 const videoFrame = document.getElementById('video-frame');
@@ -23,6 +26,8 @@ const hotspotStatus = document.getElementById('hotspot-status');
 const mediamtxStatus = document.getElementById('mediamtx-status');
 const streamStatus = document.getElementById('stream-status');
 const detectionsContent = document.getElementById('detections-content');
+
+
 
 // Eventos WebSocket
 socket.on('connect', () => {
@@ -235,6 +240,49 @@ function stopStatusPolling() {
         statusInterval = null;
     }
 }
+
+// Función para cambiar el modelo
+async function changeModel(modelName) {
+    try {
+        const response = await fetch('/api/model/change', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ model: modelName })
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+            console.log('Modelo cambiado a:', modelName);
+            // Aquí puedes actualizar la UI para mostrar el modelo seleccionado
+            alert(`Modelo cambiado a: ${modelName}`);
+        } else {
+            alert('Error: ' + (data.error || 'No se pudo cambiar el modelo'));
+        }
+    } catch (error) {
+        console.error('Error al cambiar modelo:', error);
+        alert('Error de conexión al cambiar modelo');
+    }
+}
+
+//modelo seleccionado
+const modelSelector = document.getElementById('model-selector');
+
+if (modelSelector) {
+    const modelOptions = modelSelector.querySelectorAll('a[data-model]');
+    modelOptions.forEach(option => {
+        option.addEventListener('click', (event) => {
+            event.preventDefault();
+            const selectedModel = event.target.getAttribute('data-model');
+            currentModel = selectedModel;
+            changeModel(selectedModel);
+        });
+    });
+} else {
+    console.warn('No se encontró el selector de modelos en el DOM');
+}
+
+
 
 // Event listeners
 btnInferencia.addEventListener('click', () => {

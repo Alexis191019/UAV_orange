@@ -37,6 +37,13 @@ inferir = False
 fps_hist = []
 frame_count = 0
 
+# Diccionario de modelos disponibles
+MODELOS_DISPONIBLES = {
+    'uav': 'Visdrone_yolo11n_rknn_model',  # Modelo por defecto (UAV)
+    'fuego': None,  # Por ahora None, luego agregarás la ruta
+    'personas-agua': None  # Por ahora None, luego agregarás la ruta
+}
+
 
 def inicializar_sistema():
     """Inicializa el sistema: hotspot, MediaMTX y modelo (sin RTMP)."""
@@ -313,6 +320,74 @@ def toggle_hotspot():
                 "ip": ip_hotspot
             })
     except Exception as exc:
+        return jsonify({"error": str(exc)}), 500
+
+@app.route('/api/model/change', methods=['POST'])
+def change_model():
+    """Cambia el modelo de inferencia."""
+    global detector, inferir
+    
+    try:
+        # Obtener el modelo solicitado del request
+        data = request.get_json()
+        if not data or 'model' not in data:
+            return jsonify({"error": "Parámetro 'model' requerido"}), 400
+        
+        model_name = data['model']
+        
+        # Validar que el modelo existe en el diccionario
+        if model_name not in MODELOS_DISPONIBLES:
+            return jsonify({
+                "error": f"Modelo '{model_name}' no válido",
+                "modelos_disponibles": list(MODELOS_DISPONIBLES.keys())
+            }), 400
+        
+        # Obtener la ruta del modelo
+        model_path = MODELOS_DISPONIBLES[model_name]
+        
+        # Verificar si el modelo está disponible (no es None)
+        if model_path is None:
+            return jsonify({
+                "error": f"Modelo '{model_name}' aún no está disponible",
+                "message": "La ruta del modelo no ha sido configurada"
+            }), 400
+        
+        # Si la inferencia está activa, detenerla primero
+        if inferir:
+            print("[INFO] Deteniendo inferencia antes de cambiar modelo...")
+            inferir = False
+            time.sleep(0.5)  # Dar tiempo para que termine el frame actual
+        
+        # Cargar el nuevo modelo
+        print(f"[INFO] Cargando modelo '{model_name}' desde: {model_path}")
+        try:
+            detector = DetectorYOLO(model_path=model_path)
+            print(f"[OK] Modelo '{model_name}' cargado exitosamente")
+        except FileNotFoundError as exc:
+            return jsonify({
+                "error": f"Modelo no encontrado: {exc}",
+                "model": model_name,
+                "path": model_path
+            }), 404
+        except Exception as exc:
+            print(f"[ERROR] Error al cargar modelo: {exc}")
+            import traceback
+            traceback.print_exc()
+            return jsonify({
+                "error": f"Error al cargar modelo: {str(exc)}",
+                "model": model_name
+            }), 500
+        
+        return jsonify({
+            "success": True,
+            "message": f"Modelo cambiado a '{model_name}'",
+            "model": model_name
+        })
+        
+    except Exception as exc:
+        print(f"[ERROR] Error en change_model: {exc}")
+        import traceback
+        traceback.print_exc()
         return jsonify({"error": str(exc)}), 500
 
 

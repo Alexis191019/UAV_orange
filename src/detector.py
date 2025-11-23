@@ -8,10 +8,15 @@ from . import config
 class DetectorYOLO:
     """Clase para manejar la detección de objetos con YOLO."""
     
-    def __init__(self):
-        """Inicializa el detector cargando el modelo."""
+    def __init__(self, model_path=None):
+        """Inicializa el detector cargando el modelo.
+        
+        Args:
+            model_path: Ruta al modelo. Si es None, usa config.MODEL_PATH
+        """
         print("[INFO] Cargando modelo YOLO…")
-        self.model = YOLO(config.MODEL_PATH, task='detect')
+        path = model_path if model_path else config.MODEL_PATH
+        self.model = YOLO(path, task='detect')
         print("[OK] Modelo cargado.")
     
     def detectar(self, frame):

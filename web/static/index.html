@@ -9,7 +9,7 @@
 <body>
     <div class="container">
         <header>
-            <h1>🚁 Detección UAV - Sistema RTMP</h1>
+            <h1>AIVEX UAV</h1>
         </header>
 
         <div class="main-content">
@@ -36,6 +36,15 @@
                 <button id="btn-inferencia" class="btn btn-primary" disabled>
                     Iniciar Inferencia
                 </button>
+
+                <div class="dropdown" id="model-selector">
+                    <button class="dropbtn">Seleccionar Modelo</button>
+                    <div class="dropdown-content">
+                      <a href="#" data-model="uav"> General UAV</a>
+                      <a href="#" data-model="fuego">Detección fuego</a>
+                      <a href="#" data-model="personas-agua">Detección personas en agua</a>
+                    </div>
+                </div>
 
                 <hr>
 
