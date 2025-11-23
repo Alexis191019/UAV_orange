@@ -17,6 +17,13 @@ from src.detector import DetectorYOLO
 ctk.set_appearance_mode("dark")
 ctk.set_default_color_theme("blue")
 
+# Diccionario de modelos disponibles
+MODELOS_DISPONIBLES = {
+    'uav': 'Visdrone_yolo11n_rknn_model',  # Modelo por defecto (UAV)
+    'fuego': None,  # Por ahora None, luego agregarás la ruta
+    'personas-agua': None  # Por ahora None, luego agregarás la ruta
+}
+
 
 class DeteccionUAVApp(ctk.CTk):
     """Aplicación principal de detección UAV con interfaz gráfica."""
@@ -35,6 +42,7 @@ class DeteccionUAVApp(ctk.CTk):
         self.inferir = False
         self.fps_hist = []
         self.frame_count = 0
+        self.current_model = 'uav'  # Modelo actual seleccionado
         
         # Configurar ventana
         self.title("Detección UAV - Sistema RTMP")
@@ -96,6 +104,40 @@ class DeteccionUAVApp(ctk.CTk):
             state="disabled"
         )
         self.btn_inferencia.pack(pady=10, padx=20, fill="x")
+        
+        # Selector de modelo
+        model_label = ctk.CTkLabel(
+            control_frame,
+            text="Modelo de Inferencia",
+            font=ctk.CTkFont(size=12, weight="bold")
+        )
+        model_label.pack(pady=(10, 5), padx=20)
+        
+        # Crear opciones para el menú desplegable
+        model_options = []
+        model_display_names = {
+            'uav': 'General UAV',
+            'fuego': 'Detección Fuego',
+            'personas-agua': 'Personas en Agua'
+        }
+        
+        for model_key in MODELOS_DISPONIBLES.keys():
+            display_name = model_display_names.get(model_key, model_key)
+            if MODELOS_DISPONIBLES[model_key] is not None:
+                model_options.append(display_name)
+            else:
+                model_options.append(f"{display_name} (No disponible)")
+        
+        self.model_selector = ctk.CTkOptionMenu(
+            control_frame,
+            values=model_options,
+            command=self.cambiar_modelo,
+            font=ctk.CTkFont(size=12),
+            height=35,
+            state="disabled"
+        )
+        self.model_selector.set(model_display_names.get('uav', 'General UAV'))
+        self.model_selector.pack(pady=5, padx=20, fill="x")
         
         # Separador
         separator1 = ctk.CTkFrame(control_frame, height=2, fg_color="gray")
@@ -226,7 +268,11 @@ class DeteccionUAVApp(ctk.CTk):
             
             # Cargar modelo
             self.after(0, lambda: self.video_label.configure(text="Cargando modelo..."))
-            self.detector = DetectorYOLO()
+            model_path = MODELOS_DISPONIBLES.get(self.current_model)
+            if model_path:
+                self.detector = DetectorYOLO(model_path=model_path)
+            else:
+                self.detector = DetectorYOLO()  # Usar modelo por defecto
             
             # Abrir stream
             self.after(0, lambda: self.stream_status.configure(text="Stream RTMP: Conectando..."))
@@ -252,6 +298,7 @@ class DeteccionUAVApp(ctk.CTk):
             # Habilitar controles
             self.after(0, lambda: self.btn_inferencia.configure(state="normal"))
             self.after(0, lambda: self.btn_hotspot.configure(state="normal"))
+            self.after(0, lambda: self.model_selector.configure(state="normal"))
             
             # Iniciar bucle de actualización de video
             self.actualizar_video()
@@ -339,6 +386,101 @@ class DeteccionUAVApp(ctk.CTk):
             levantar_hotspot()
             self.hotspot_status.configure(text="Hotspot: Activo")
             self.btn_hotspot.configure(text="Desactivar Hotspot", fg_color="gray")
+    
+    def cambiar_modelo(self, selected_display_name):
+        """Cambia el modelo de inferencia según la selección del usuario."""
+        # Limpiar el nombre (remover "(No disponible)" si está presente)
+        clean_name = selected_display_name.replace(" (No disponible)", "").strip()
+        
+        # Mapear nombre de visualización a clave del modelo
+        model_display_to_key = {
+            'General UAV': 'uav',
+            'Detección Fuego': 'fuego',
+            'Personas en Agua': 'personas-agua'
+        }
+        
+        # Buscar la clave del modelo
+        model_key = model_display_to_key.get(clean_name)
+        
+        if model_key is None:
+            print(f"[ERROR] No se pudo identificar el modelo: {selected_display_name}")
+            return
+        
+        # Verificar que el modelo esté disponible
+        model_path = MODELOS_DISPONIBLES.get(model_key)
+        if model_path is None:
+            print(f"[ERROR] Modelo '{model_key}' aún no está disponible")
+            # Mostrar mensaje de error en la GUI
+            self.after(0, lambda: self.video_label.configure(
+                text=f"Modelo '{clean_name}' no disponible"
+            ))
+            # Revertir la selección
+            model_display_names = {
+                'uav': 'General UAV',
+                'fuego': 'Detección Fuego',
+                'personas-agua': 'Personas en Agua'
+            }
+            current_display = model_display_names.get(self.current_model, 'General UAV')
+            # Agregar "(No disponible)" si el modelo actual no está disponible
+            if MODELOS_DISPONIBLES.get(self.current_model) is None:
+                current_display += " (No disponible)"
+            self.after(0, lambda: self.model_selector.set(current_display))
+            return
+        
+        # Si la inferencia está activa, detenerla primero
+        if self.inferir:
+            print("[INFO] Deteniendo inferencia antes de cambiar modelo...")
+            self.inferir = False
+            self.after(0, lambda: self.btn_inferencia.configure(
+                text="Iniciar Inferencia",
+                fg_color=("gray75", "gray25")
+            ))
+            time.sleep(0.5)  # Dar tiempo para que termine el frame actual
+        
+        # Cargar el nuevo modelo en un hilo separado para no bloquear la GUI
+        def cargar_modelo():
+            try:
+                print(f"[INFO] Cargando modelo '{model_key}' desde: {model_path}")
+                self.after(0, lambda: self.video_label.configure(text=f"Cargando modelo {selected_display_name}..."))
+                
+                new_detector = DetectorYOLO(model_path=model_path)
+                self.detector = new_detector
+                self.current_model = model_key
+                
+                print(f"[OK] Modelo '{model_key}' cargado exitosamente")
+                self.after(0, lambda: self.video_label.configure(text="Modelo cargado correctamente"))
+                
+            except FileNotFoundError as exc:
+                print(f"[ERROR] Modelo no encontrado: {exc}")
+                self.after(0, lambda: self.video_label.configure(
+                    text=f"Error: Modelo no encontrado"
+                ))
+                # Revertir la selección
+                model_display_names = {
+                    'uav': 'General UAV',
+                    'fuego': 'Detección Fuego',
+                    'personas-agua': 'Personas en Agua'
+                }
+                self.after(0, lambda: self.model_selector.set(
+                    model_display_names.get(self.current_model, 'General UAV')
+                ))
+            except Exception as exc:
+                print(f"[ERROR] Error al cargar modelo: {exc}")
+                self.after(0, lambda: self.video_label.configure(
+                    text=f"Error al cargar modelo: {str(exc)[:50]}"
+                ))
+                # Revertir la selección
+                model_display_names = {
+                    'uav': 'General UAV',
+                    'fuego': 'Detección Fuego',
+                    'personas-agua': 'Personas en Agua'
+                }
+                self.after(0, lambda: self.model_selector.set(
+                    model_display_names.get(self.current_model, 'General UAV')
+                ))
+        
+        # Ejecutar en hilo separado
+        threading.Thread(target=cargar_modelo, daemon=True).start()
     
     def on_closing(self):
         """Maneja el cierre de la aplicación."""
