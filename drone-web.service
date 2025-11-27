@@ -1,0 +1,15 @@
+[Unit]
+Description=Servidor web dron (Flask + MediaMTX + Hotspot)
+After=network.target NetworkManager.service
+
+[Service]
+Type=simple
+User=orangepi
+WorkingDirectory=/home/orangepi/Desktop/proyectos_cv/drone2/produccion
+ExecStart=/bin/bash /home/orangepi/Desktop/proyectos_cv/drone2/produccion/start_web.sh
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+
