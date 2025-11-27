@@ -13,6 +13,7 @@ const videoFrame = document.getElementById('video-frame');
 const videoPlaceholder = document.getElementById('video-placeholder');
 const btnInferencia = document.getElementById('btn-inferencia');
 const btnHotspot = document.getElementById('btn-hotspot');
+const btnShutdown = document.getElementById('btn-shutdown');
 const connectionStatus = document.getElementById('connection-status');
 const statusDot = connectionStatus.querySelector('.status-dot');
 
@@ -178,6 +179,35 @@ async function toggleHotspot() {
     }
 }
 
+async function shutdownSystem() {
+    if (!confirm('¿Estás seguro de que deseas apagar la Orange Pi?\n\nEsto cerrará el servidor y apagará el dispositivo.')) {
+        return;
+    }
+    
+    try {
+        btnShutdown.disabled = true;
+        btnShutdown.textContent = 'Apagando...';
+        
+        const response = await fetch('/api/shutdown', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        });
+        const data = await response.json();
+        
+        if (response.ok) {
+            alert('Sistema apagándose... La Orange Pi se apagará en unos segundos.');
+            // El servidor se cerrará, así que la conexión se perderá
+        } else {
+            alert('Error: ' + (data.error || 'No se pudo apagar el sistema'));
+            btnShutdown.disabled = false;
+            btnShutdown.textContent = 'Apagar Orange Pi';
+        }
+    } catch (error) {
+        console.error('Error al apagar sistema:', error);
+        alert('Error de conexión. El sistema puede estar apagándose...');
+    }
+}
+
 async function loadStatus() {
     try {
         const response = await fetch('/api/status');
@@ -265,17 +295,37 @@ async function changeModel(modelName) {
     }
 }
 
-//modelo seleccionado
+// Manejo del dropdown de modelos (click en lugar de hover)
 const modelSelector = document.getElementById('model-selector');
 
 if (modelSelector) {
+    const dropbtn = modelSelector.querySelector('.dropbtn');
+    const dropdownContent = modelSelector.querySelector('.dropdown-content');
     const modelOptions = modelSelector.querySelectorAll('a[data-model]');
+    
+    // Toggle del dropdown al hacer click en el botón
+    dropbtn.addEventListener('click', (event) => {
+        event.stopPropagation();
+        modelSelector.classList.toggle('show');
+    });
+    
+    // Cerrar el dropdown al hacer click fuera
+    document.addEventListener('click', (event) => {
+        if (!modelSelector.contains(event.target)) {
+            modelSelector.classList.remove('show');
+        }
+    });
+    
+    // Manejar selección de modelo
     modelOptions.forEach(option => {
         option.addEventListener('click', (event) => {
             event.preventDefault();
+            event.stopPropagation();
             const selectedModel = event.target.getAttribute('data-model');
             currentModel = selectedModel;
             changeModel(selectedModel);
+            // Cerrar el dropdown después de seleccionar
+            modelSelector.classList.remove('show');
         });
     });
 } else {
@@ -294,6 +344,7 @@ btnInferencia.addEventListener('click', () => {
 });
 
 btnHotspot.addEventListener('click', toggleHotspot);
+btnShutdown.addEventListener('click', shutdownSystem);
 
 // Cargar estado inicial
 loadStatus();

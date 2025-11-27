@@ -446,12 +446,58 @@ def change_model():
             "message": f"Modelo cambiado a '{model_name}'",
             "model": model_name
         })
-        
     except Exception as exc:
         print(f"[ERROR] Error en change_model: {exc}")
         import traceback
         traceback.print_exc()
         return jsonify({"error": str(exc)}), 500
+
+
+@app.route('/api/shutdown', methods=['POST'])
+def shutdown_system():
+    """Apaga la Orange Pi de forma segura."""
+    if sys.platform == "win32":
+        return jsonify({"error": "Apagado no disponible en Windows"}), 400
+    
+    try:
+        print("[INFO] Solicitud de apagado recibida desde cliente web")
+        
+        # Cerrar recursos primero
+        cleanup()
+        
+        # Ejecutar comando de apagado (requiere permisos sudo)
+        import subprocess
+        result = subprocess.run(
+            ['sudo', 'shutdown', '-h', 'now'],
+            capture_output=True,
+            text=True,
+            timeout=5
+        )
+        
+        if result.returncode == 0:
+            return jsonify({
+                "success": True,
+                "message": "Sistema apagándose..."
+            })
+        else:
+            return jsonify({
+                "error": f"No se pudo apagar el sistema: {result.stderr}",
+                "message": "Verifica que el usuario tenga permisos sudo sin contraseña para 'shutdown'"
+            }), 500
+            
+    except subprocess.TimeoutExpired:
+        # El comando se ejecutó pero el sistema está apagándose
+        return jsonify({
+            "success": True,
+            "message": "Sistema apagándose..."
+        })
+    except Exception as exc:
+        print(f"[ERROR] Error al apagar sistema: {exc}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            "error": f"Error al apagar sistema: {str(exc)}"
+        }), 500
 
 
 @socketio.on('connect')

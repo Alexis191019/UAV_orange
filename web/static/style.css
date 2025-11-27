@@ -156,6 +156,17 @@ header h1 {
     background: #5a6268;
 }
 
+.btn-danger {
+    background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+    color: white;
+}
+
+.btn-danger:hover:not(:disabled) {
+    background: linear-gradient(135deg, #e74c3c 0%, #d32f2f 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(220, 53, 69, 0.4);
+}
+
 hr {
     border: none;
     border-top: 1px solid rgba(255, 255, 255, 0.2);
@@ -247,7 +258,7 @@ hr {
     transition: transform 0.3s ease;
 }
 
-.dropdown:hover .dropbtn::after {
+.dropdown.show .dropbtn::after {
     transform: translateY(-50%) rotate(180deg);
 }
 
@@ -285,7 +296,7 @@ hr {
     }
 }
 
-.dropdown:hover .dropdown-content {
+.dropdown.show .dropdown-content {
     display: block;
 }
 
