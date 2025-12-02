@@ -36,6 +36,9 @@ frame_queue = queue.Queue(maxsize=1)
 inferir = False
 fps_hist = []
 frame_count = 0
+selected_classes = None  # Lista de clases seleccionadas para detectar
+conf_threshold = None  # Threshold de confianza personalizado
+class_colors = {}  # Diccionario {nombre_clase: (B, G, R)} para colores de bboxes
 
 # Diccionario de modelos disponibles
 MODELOS_DISPONIBLES = {
@@ -85,8 +88,17 @@ def inicializar_sistema():
         # Cargar modelo (solo si existe, en Windows puede no estar)
         print("[INFO] Cargando modelo YOLO...")
         try:
-            detector = DetectorYOLO()
-            print("[OK] Modelo cargado")
+            model_path = MODELOS_DISPONIBLES.get('uav')  # Modelo por defecto
+            if model_path:
+                detector = DetectorYOLO(model_path=model_path)
+                print("[OK] Modelo cargado")
+                # Mostrar clases disponibles
+                class_names = detector.get_class_names()
+                if class_names:
+                    print(f"[INFO] Clases disponibles: {list(class_names.values())}")
+            else:
+                print("[WARN] Modelo por defecto no configurado")
+                detector = None
         except FileNotFoundError as exc:
             print(f"[WARN] Modelo no encontrado: {exc}")
             print("[INFO] El servidor funcionará en modo demo (sin inferencia)")
@@ -252,7 +264,12 @@ def process_and_stream():
                 continue
             
             if inferir and detector is not None:
-                annotated, elapsed, clases_detectadas = detector.detectar(frame)
+                annotated, elapsed, clases_detectadas = detector.detectar(
+                    frame,
+                    conf_threshold=conf_threshold,
+                    selected_classes=selected_classes,
+                    class_colors=class_colors
+                )
                 fps_actual = 1.0 / elapsed if elapsed > 0 else 0.0
                 fps_hist.append(fps_actual)
                 if len(fps_hist) > 30:
@@ -441,13 +458,98 @@ def change_model():
                 "model": model_name
             }), 500
         
+        # Obtener clases disponibles del nuevo modelo
+        class_names = {}
+        try:
+            class_names = detector.get_class_names()
+        except Exception:
+            pass
+        
         return jsonify({
             "success": True,
             "message": f"Modelo cambiado a '{model_name}'",
-            "model": model_name
+            "model": model_name,
+            "classes": class_names
         })
     except Exception as exc:
         print(f"[ERROR] Error en change_model: {exc}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": str(exc)}), 500
+
+
+@app.route('/api/model/classes', methods=['GET'])
+def get_model_classes():
+    """Obtiene las clases disponibles del modelo actual."""
+    global detector
+    if detector is None:
+        return jsonify({
+            "error": "Modelo no cargado",
+            "classes": {}
+        }), 400
+    
+    try:
+        class_names = detector.get_class_names()
+        return jsonify({
+            "success": True,
+            "classes": class_names
+        })
+    except Exception as exc:
+        return jsonify({
+            "error": str(exc),
+            "classes": {}
+        }), 500
+
+
+@app.route('/api/inference/config', methods=['POST'])
+def config_inference():
+    """Configura las clases seleccionadas y el threshold de confianza."""
+    global selected_classes, conf_threshold, class_colors
+    
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({"error": "Datos no proporcionados"}), 400
+        
+        # Actualizar clases seleccionadas
+        if 'selected_classes' in data:
+            # Si es None o lista vacía, establecer como None
+            if data['selected_classes'] and len(data['selected_classes']) > 0:
+                selected_classes = data['selected_classes']
+            else:
+                selected_classes = None
+            print(f"[INFO] Clases seleccionadas actualizadas: {selected_classes}")
+        
+        # Actualizar threshold
+        if 'conf_threshold' in data:
+            threshold = data['conf_threshold']
+            if threshold is not None:
+                # Validar que esté en rango [0, 1]
+                threshold = max(0.0, min(1.0, float(threshold)))
+            conf_threshold = threshold
+            print(f"[INFO] Threshold de confianza actualizado: {conf_threshold}")
+        
+        # Actualizar colores de clases
+        if 'class_colors' in data:
+            # Convertir colores de formato RGB (frontend) a BGR (OpenCV)
+            colors_dict = data['class_colors']
+            class_colors = {}
+            if isinstance(colors_dict, dict) and len(colors_dict) > 0:
+                for class_name, color in colors_dict.items():
+                    if isinstance(color, list) and len(color) >= 3:
+                        # Frontend envía RGB, OpenCV usa BGR
+                        r, g, b = color[0], color[1], color[2]
+                        class_colors[class_name] = (b, g, r)  # Convertir a BGR
+            print(f"[INFO] Colores de clases actualizados: {len(class_colors)} clases")
+        
+        return jsonify({
+            "success": True,
+            "message": "Configuración actualizada",
+            "selected_classes": selected_classes,
+            "conf_threshold": conf_threshold
+        })
+    except Exception as exc:
+        print(f"[ERROR] Error al configurar inferencia: {exc}")
         import traceback
         traceback.print_exc()
         return jsonify({"error": str(exc)}), 500

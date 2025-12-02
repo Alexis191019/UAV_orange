@@ -7,12 +7,45 @@ const socket = io();
 let inferenceActive = false;
 let statusInterval = null;
 let currentModel = 'uav';
+let availableClasses = {}; // Diccionario {id: nombre} de clases disponibles
+let selectedClasses = []; // Lista de nombres de clases seleccionadas
+let classColors = {}; // Diccionario {nombre_clase: [R, G, B]} para colores
+let confidenceThreshold = 0.3; // Threshold de confianza (0-1)
+
+// Traducción de clases al español
+const classTranslations = {
+    'pedestrian': 'Persona',
+    'people': 'Gente',
+    'bicycle': 'Bicicleta',
+    'car': 'Auto',
+    'van': 'Camioneta',
+    'truck': 'Camión',
+    'tricycle': 'Triciclo',
+    'awning-tricycle': 'Triciclo con toldo',
+    'bus': 'Autobús',
+    'motor': 'Motocicleta'
+};
+
+// Generar colores para las clases (paleta de colores)
+const colorPalette = [
+    [0, 100, 255],    // Azul
+    [255, 0, 0],      // Rojo
+    [0, 255, 0],      // Verde
+    [255, 255, 0],    // Amarillo
+    [255, 0, 255],    // Magenta
+    [0, 255, 255],    // Cyan
+    [255, 128, 0],    // Naranja
+    [128, 0, 255],    // Púrpura
+    [255, 0, 128],    // Rosa
+    [0, 128, 255],    // Azul claro
+    [128, 255, 0],    // Verde lima
+    [255, 128, 128]   // Rosa claro
+];
 
 // Elementos del DOM
 const videoFrame = document.getElementById('video-frame');
 const videoPlaceholder = document.getElementById('video-placeholder');
 const btnInferencia = document.getElementById('btn-inferencia');
-const btnHotspot = document.getElementById('btn-hotspot');
 const btnShutdown = document.getElementById('btn-shutdown');
 const connectionStatus = document.getElementById('connection-status');
 const statusDot = connectionStatus.querySelector('.status-dot');
@@ -23,10 +56,14 @@ const fpsAvgValue = document.getElementById('fps-avg-value');
 const framesValue = document.getElementById('frames-value');
 
 // Elementos de estado
-const hotspotStatus = document.getElementById('hotspot-status');
-const mediamtxStatus = document.getElementById('mediamtx-status');
 const streamStatus = document.getElementById('stream-status');
 const detectionsContent = document.getElementById('detections-content');
+
+// Elementos de clases y confianza
+const availableClassesDiv = document.getElementById('available-classes');
+const selectedClassesDiv = document.getElementById('selected-classes');
+const confidenceSlider = document.getElementById('confidence-slider');
+const confidenceValue = document.getElementById('confidence-value');
 
 
 
@@ -160,24 +197,6 @@ async function stopInference() {
     }
 }
 
-async function toggleHotspot() {
-    try {
-        const response = await fetch('/api/hotspot/toggle', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' }
-        });
-        const data = await response.json();
-        if (response.ok) {
-            loadStatus(); // Recargar estado
-            console.log('Hotspot toggled:', data.status);
-        } else {
-            alert('Error: ' + (data.error || 'No se pudo alternar el hotspot'));
-        }
-    } catch (error) {
-        console.error('Error al alternar hotspot:', error);
-        alert('Error de conexión al alternar hotspot');
-    }
-}
 
 async function shutdownSystem() {
     if (!confirm('¿Estás seguro de que deseas apagar la Orange Pi?\n\nEsto cerrará el servidor y apagará el dispositivo.')) {
@@ -221,26 +240,7 @@ async function loadStatus() {
             btnInferencia.classList.add('active');
         }
         
-        // Actualizar estado del sistema
-        if (data.hotspot_active) {
-            const hotspotText = data.hotspot_name 
-                ? `${data.hotspot_name} - IP: ${data.hotspot_ip || 'N/A'}`
-                : 'Activo';
-            hotspotStatus.textContent = hotspotText;
-            btnHotspot.textContent = 'Desactivar Hotspot';
-            btnHotspot.disabled = false;
-        } else {
-            hotspotStatus.textContent = 'Desactivado';
-            btnHotspot.textContent = 'Activar Hotspot';
-            btnHotspot.disabled = false;
-        }
-        
-        if (data.rtmp_url) {
-            mediamtxStatus.textContent = `Transmitir a: ${data.rtmp_url}`;
-        } else {
-            mediamtxStatus.textContent = 'IP: 127.0.0.1:1935';
-        }
-        
+        // Actualizar estado del stream
         streamStatus.textContent = data.stream_connected ? 'Conectado' : 'Desconectado';
         
         // Actualizar métricas
@@ -284,14 +284,199 @@ async function changeModel(modelName) {
         
         if (response.ok) {
             console.log('Modelo cambiado a:', modelName);
-            // Aquí puedes actualizar la UI para mostrar el modelo seleccionado
-            alert(`Modelo cambiado a: ${modelName}`);
+            currentModel = modelName;
+            
+            // Cargar clases disponibles del nuevo modelo
+            await loadModelClasses();
+            
+            // Limpiar clases seleccionadas al cambiar modelo
+            selectedClasses = [];
+            classColors = {};
+            renderClasses();
+            updateInferenceConfig();
         } else {
             alert('Error: ' + (data.error || 'No se pudo cambiar el modelo'));
         }
     } catch (error) {
         console.error('Error al cambiar modelo:', error);
         alert('Error de conexión al cambiar modelo');
+    }
+}
+
+async function loadModelClasses() {
+    try {
+        const response = await fetch('/api/model/classes');
+        const data = await response.json();
+        
+        if (response.ok && data.classes) {
+            availableClasses = data.classes;
+            renderClasses();
+        } else {
+            console.error('Error al cargar clases:', data.error);
+            availableClasses = {};
+            renderClasses();
+        }
+    } catch (error) {
+        console.error('Error al cargar clases:', error);
+        availableClasses = {};
+        renderClasses();
+    }
+}
+
+function getClassDisplayName(className) {
+    // Retorna el nombre traducido o el original si no hay traducción
+    return classTranslations[className.toLowerCase()] || className;
+}
+
+function getClassColor(className) {
+    // Si ya tiene color asignado, retornarlo
+    if (classColors[className]) {
+        return classColors[className];
+    }
+    
+    // Asignar un color de la paleta basado en el índice
+    const classList = Object.values(availableClasses);
+    const index = classList.indexOf(className);
+    const colorIndex = index % colorPalette.length;
+    const color = colorPalette[colorIndex];
+    
+    // Guardar el color
+    classColors[className] = color;
+    return color;
+}
+
+function renderClasses() {
+    // Limpiar contenedores
+    availableClassesDiv.innerHTML = '';
+    selectedClassesDiv.innerHTML = '';
+    
+    // Obtener todas las clases disponibles
+    const allClassNames = Object.values(availableClasses);
+    
+    if (allClassNames.length === 0) {
+        availableClassesDiv.innerHTML = '<p class="no-classes-msg">Selecciona un modelo primero</p>';
+        selectedClassesDiv.innerHTML = '<p class="no-classes-msg">Arrastra clases aquí</p>';
+        return;
+    }
+    
+    // Renderizar clases disponibles (las que no están seleccionadas)
+    const available = allClassNames.filter(name => !selectedClasses.includes(name));
+    
+    if (available.length === 0) {
+        availableClassesDiv.innerHTML = '<p class="no-classes-msg">Todas las clases están seleccionadas</p>';
+    } else {
+        available.forEach(className => {
+            const classItem = createClassItem(className, false);
+            availableClassesDiv.appendChild(classItem);
+        });
+    }
+    
+    // Renderizar clases seleccionadas
+    if (selectedClasses.length === 0) {
+        selectedClassesDiv.innerHTML = '<p class="no-classes-msg">Arrastra clases aquí</p>';
+    } else {
+        selectedClasses.forEach(className => {
+            const classItem = createClassItem(className, true);
+            selectedClassesDiv.appendChild(classItem);
+        });
+    }
+}
+
+function createClassItem(className, isSelected) {
+    const div = document.createElement('div');
+    div.className = `class-item ${isSelected ? 'selected' : ''}`;
+    div.draggable = true;
+    div.dataset.className = className;
+    
+    const color = getClassColor(className);
+    const displayName = getClassDisplayName(className);
+    
+    div.innerHTML = `
+        <div class="class-color" style="background-color: rgb(${color[0]}, ${color[1]}, ${color[2]})"></div>
+        <span class="class-name">${displayName}</span>
+        ${isSelected ? '<button class="class-remove" onclick="removeClass(\'' + className + '\')">×</button>' : ''}
+    `;
+    
+    // Eventos de drag and drop
+    div.addEventListener('dragstart', handleDragStart);
+    div.addEventListener('dragover', handleDragOver);
+    div.addEventListener('drop', handleDrop);
+    div.addEventListener('dragend', handleDragEnd);
+    
+    return div;
+}
+
+let draggedElement = null;
+
+function handleDragStart(e) {
+    draggedElement = this;
+    this.classList.add('dragging');
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', this.dataset.className);
+}
+
+function handleDragOver(e) {
+    if (e.preventDefault) {
+        e.preventDefault();
+    }
+    e.dataTransfer.dropEffect = 'move';
+    return false;
+}
+
+function handleDrop(e) {
+    if (e.stopPropagation) {
+        e.stopPropagation();
+    }
+    
+    const className = e.dataTransfer.getData('text/plain');
+    const isSelectedArea = this.closest('#selected-classes') !== null;
+    const isAvailableArea = this.closest('#available-classes') !== null;
+    
+    if (isSelectedArea && !selectedClasses.includes(className)) {
+        // Agregar a seleccionadas
+        selectedClasses.push(className);
+        updateInferenceConfig();
+    } else if (isAvailableArea && selectedClasses.includes(className)) {
+        // Remover de seleccionadas
+        selectedClasses = selectedClasses.filter(c => c !== className);
+        updateInferenceConfig();
+    }
+    
+    renderClasses();
+    return false;
+}
+
+function handleDragEnd(e) {
+    this.classList.remove('dragging');
+    draggedElement = null;
+}
+
+function removeClass(className) {
+    selectedClasses = selectedClasses.filter(c => c !== className);
+    renderClasses();
+    updateInferenceConfig();
+}
+
+async function updateInferenceConfig() {
+    try {
+        const response = await fetch('/api/inference/config', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                selected_classes: selectedClasses.length > 0 ? selectedClasses : null,
+                conf_threshold: confidenceThreshold,
+                class_colors: Object.keys(classColors).length > 0 ? classColors : {}
+            })
+        });
+        
+        const data = await response.json();
+        if (response.ok) {
+            console.log('Configuración de inferencia actualizada');
+        } else {
+            console.error('Error al actualizar configuración:', data.error);
+        }
+    } catch (error) {
+        console.error('Error al actualizar configuración:', error);
     }
 }
 
@@ -343,9 +528,22 @@ btnInferencia.addEventListener('click', () => {
     }
 });
 
-btnHotspot.addEventListener('click', toggleHotspot);
 btnShutdown.addEventListener('click', shutdownSystem);
+
+// Event listener para el slider de confianza
+confidenceSlider.addEventListener('input', (e) => {
+    const value = parseInt(e.target.value);
+    confidenceThreshold = value / 100.0; // Convertir de 0-100 a 0-1
+    confidenceValue.textContent = value + '%';
+    updateInferenceConfig();
+});
 
 // Cargar estado inicial
 loadStatus();
+loadModelClasses();
+
+// Enviar configuración inicial al backend (threshold por defecto)
+setTimeout(() => {
+    updateInferenceConfig();
+}, 1000); // Esperar 1 segundo para que el servidor esté listo
 

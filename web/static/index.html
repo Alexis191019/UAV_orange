@@ -67,17 +67,45 @@
 
                 <hr>
 
-                <!-- Estado del sistema -->
+                <!-- Selector de clases -->
+                <div class="classes-section">
+                    <h3>Clases a Detectar</h3>
+                    <div class="classes-selector">
+                        <div class="classes-available">
+                            <h4>Clases Disponibles</h4>
+                            <div id="available-classes" class="classes-list">
+                                <p class="no-classes-msg">Selecciona un modelo primero</p>
+                            </div>
+                        </div>
+                        <div class="classes-selected">
+                            <h4>Clases Seleccionadas</h4>
+                            <div id="selected-classes" class="classes-list">
+                                <p class="no-classes-msg">Arrastra clases aquí</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <hr>
+
+                <!-- Slider de confianza -->
+                <div class="confidence-section">
+                    <h3>Nivel de Confianza</h3>
+                    <div class="slider-container">
+                        <input type="range" id="confidence-slider" min="0" max="100" value="30" class="slider">
+                        <div class="slider-labels">
+                            <span>0%</span>
+                            <span id="confidence-value">30%</span>
+                            <span>100%</span>
+                        </div>
+                    </div>
+                </div>
+
+                <hr>
+
+                <!-- Estado del stream -->
                 <div class="status-section">
-                    <h3>Estado del Sistema</h3>
-                    <div class="status-item">
-                        <span class="label">Hotspot:</span>
-                        <span id="hotspot-status">Verificando...</span>
-                    </div>
-                    <div class="status-item">
-                        <span class="label">MediaMTX:</span>
-                        <span id="mediamtx-status">Verificando...</span>
-                    </div>
+                    <h3>Estado del Stream</h3>
                     <div class="status-item">
                         <span class="label">Stream RTMP:</span>
                         <span id="stream-status">Desconectado</span>
@@ -86,12 +114,6 @@
 
                 <hr>
 
-                <!-- Botón de hotspot -->
-                <button id="btn-hotspot" class="btn btn-secondary" disabled>
-                    Desactivar Hotspot
-                </button>
-
-                <hr>
 
                 <!-- Botón de apagado -->
                 <button id="btn-shutdown" class="btn btn-danger">
