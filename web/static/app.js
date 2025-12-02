@@ -60,8 +60,7 @@ const streamStatus = document.getElementById('stream-status');
 const detectionsContent = document.getElementById('detections-content');
 
 // Elementos de clases y confianza
-const availableClassesDiv = document.getElementById('available-classes');
-const selectedClassesDiv = document.getElementById('selected-classes');
+const classesListDiv = document.getElementById('classes-list');
 const confidenceSlider = document.getElementById('confidence-slider');
 const confidenceValue = document.getElementById('confidence-value');
 
@@ -346,115 +345,71 @@ function getClassColor(className) {
 }
 
 function renderClasses() {
-    // Limpiar contenedores
-    availableClassesDiv.innerHTML = '';
-    selectedClassesDiv.innerHTML = '';
+    // Limpiar contenedor
+    classesListDiv.innerHTML = '';
     
     // Obtener todas las clases disponibles
     const allClassNames = Object.values(availableClasses);
     
     if (allClassNames.length === 0) {
-        availableClassesDiv.innerHTML = '<p class="no-classes-msg">Selecciona un modelo primero</p>';
-        selectedClassesDiv.innerHTML = '<p class="no-classes-msg">Arrastra clases aquí</p>';
+        classesListDiv.innerHTML = '<p class="no-classes-msg">Selecciona un modelo primero</p>';
         return;
     }
     
-    // Renderizar clases disponibles (las que no están seleccionadas)
-    const available = allClassNames.filter(name => !selectedClasses.includes(name));
-    
-    if (available.length === 0) {
-        availableClassesDiv.innerHTML = '<p class="no-classes-msg">Todas las clases están seleccionadas</p>';
-    } else {
-        available.forEach(className => {
-            const classItem = createClassItem(className, false);
-            availableClassesDiv.appendChild(classItem);
-        });
-    }
-    
-    // Renderizar clases seleccionadas
-    if (selectedClasses.length === 0) {
-        selectedClassesDiv.innerHTML = '<p class="no-classes-msg">Arrastra clases aquí</p>';
-    } else {
-        selectedClasses.forEach(className => {
-            const classItem = createClassItem(className, true);
-            selectedClassesDiv.appendChild(classItem);
-        });
-    }
+    // Renderizar todas las clases con checkboxes
+    allClassNames.forEach(className => {
+        const classItem = createClassItem(className);
+        classesListDiv.appendChild(classItem);
+    });
 }
 
-function createClassItem(className, isSelected) {
+function createClassItem(className) {
     const div = document.createElement('div');
+    const isSelected = selectedClasses.includes(className);
     div.className = `class-item ${isSelected ? 'selected' : ''}`;
-    div.draggable = true;
     div.dataset.className = className;
     
     const color = getClassColor(className);
     const displayName = getClassDisplayName(className);
     
     div.innerHTML = `
+        <div class="class-checkbox">
+            <input type="checkbox" id="checkbox-${className}" ${isSelected ? 'checked' : ''}>
+            <span class="checkmark"></span>
+        </div>
         <div class="class-color" style="background-color: rgb(${color[0]}, ${color[1]}, ${color[2]})"></div>
         <span class="class-name">${displayName}</span>
-        ${isSelected ? '<button class="class-remove" onclick="removeClass(\'' + className + '\')">×</button>' : ''}
     `;
     
-    // Eventos de drag and drop
-    div.addEventListener('dragstart', handleDragStart);
-    div.addEventListener('dragover', handleDragOver);
-    div.addEventListener('drop', handleDrop);
-    div.addEventListener('dragend', handleDragEnd);
+    // Evento de cambio en el checkbox
+    const checkbox = div.querySelector('input[type="checkbox"]');
+    checkbox.addEventListener('change', (e) => {
+        const checked = e.target.checked;
+        if (checked) {
+            // Agregar a seleccionadas si no está ya
+            if (!selectedClasses.includes(className)) {
+                selectedClasses.push(className);
+            }
+        } else {
+            // Remover de seleccionadas
+            selectedClasses = selectedClasses.filter(c => c !== className);
+        }
+        // Actualizar clase visual
+        div.classList.toggle('selected', checked);
+        // Actualizar configuración en el backend
+        updateInferenceConfig();
+    });
+    
+    // Permitir hacer click en toda la fila para activar/desactivar
+    div.addEventListener('click', (e) => {
+        // Solo si no se hizo click directamente en el checkbox
+        if (e.target !== checkbox && e.target !== checkbox.nextElementSibling) {
+            checkbox.checked = !checkbox.checked;
+            checkbox.dispatchEvent(new Event('change'));
+        }
+    });
     
     return div;
-}
-
-let draggedElement = null;
-
-function handleDragStart(e) {
-    draggedElement = this;
-    this.classList.add('dragging');
-    e.dataTransfer.effectAllowed = 'move';
-    e.dataTransfer.setData('text/plain', this.dataset.className);
-}
-
-function handleDragOver(e) {
-    if (e.preventDefault) {
-        e.preventDefault();
-    }
-    e.dataTransfer.dropEffect = 'move';
-    return false;
-}
-
-function handleDrop(e) {
-    if (e.stopPropagation) {
-        e.stopPropagation();
-    }
-    
-    const className = e.dataTransfer.getData('text/plain');
-    const isSelectedArea = this.closest('#selected-classes') !== null;
-    const isAvailableArea = this.closest('#available-classes') !== null;
-    
-    if (isSelectedArea && !selectedClasses.includes(className)) {
-        // Agregar a seleccionadas
-        selectedClasses.push(className);
-        updateInferenceConfig();
-    } else if (isAvailableArea && selectedClasses.includes(className)) {
-        // Remover de seleccionadas
-        selectedClasses = selectedClasses.filter(c => c !== className);
-        updateInferenceConfig();
-    }
-    
-    renderClasses();
-    return false;
-}
-
-function handleDragEnd(e) {
-    this.classList.remove('dragging');
-    draggedElement = null;
-}
-
-function removeClass(className) {
-    selectedClasses = selectedClasses.filter(c => c !== className);
-    renderClasses();
-    updateInferenceConfig();
 }
 
 async function updateInferenceConfig() {
