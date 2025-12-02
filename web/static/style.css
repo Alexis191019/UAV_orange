@@ -79,6 +79,110 @@ header h1 {
     z-index: 1;  /* Asegurar que esté sobre el fondo */
 }
 
+/* Botón de pantalla completa */
+.btn-fullscreen {
+    position: absolute;
+    bottom: 10px;
+    right: 10px;
+    width: 40px;
+    height: 40px;
+    background: rgba(0, 0, 0, 0.6);
+    border: 2px solid rgba(255, 255, 255, 0.5);
+    border-radius: 8px;
+    color: white;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10;
+    transition: all 0.3s ease;
+    backdrop-filter: blur(5px);
+}
+
+.btn-fullscreen:hover {
+    background: rgba(0, 0, 0, 0.8);
+    border-color: rgba(255, 255, 255, 0.8);
+    transform: scale(1.1);
+}
+
+.btn-fullscreen:active {
+    transform: scale(0.95);
+}
+
+.fullscreen-icon {
+    width: 20px;
+    height: 20px;
+    display: block;
+    stroke: currentColor;
+    fill: none;
+}
+
+/* Estilos cuando está en pantalla completa */
+.video-container:fullscreen {
+    background: #000;
+    border-radius: 0;
+}
+
+.video-container:fullscreen #video-frame {
+    width: 100vw;
+    height: 100vh;
+    object-fit: contain;
+}
+
+.video-container:fullscreen .btn-fullscreen {
+    bottom: 20px;
+    right: 20px;
+}
+
+/* Prefijos para compatibilidad con navegadores */
+.video-container:-webkit-full-screen {
+    background: #000;
+    border-radius: 0;
+}
+
+.video-container:-webkit-full-screen #video-frame {
+    width: 100vw;
+    height: 100vh;
+    object-fit: contain;
+}
+
+.video-container:-webkit-full-screen .btn-fullscreen {
+    bottom: 20px;
+    right: 20px;
+}
+
+.video-container:-moz-full-screen {
+    background: #000;
+    border-radius: 0;
+}
+
+.video-container:-moz-full-screen #video-frame {
+    width: 100vw;
+    height: 100vh;
+    object-fit: contain;
+}
+
+.video-container:-moz-full-screen .btn-fullscreen {
+    bottom: 20px;
+    right: 20px;
+}
+
+.video-container:-ms-fullscreen {
+    background: #000;
+    border-radius: 0;
+}
+
+.video-container:-ms-fullscreen #video-frame {
+    width: 100vw;
+    height: 100vh;
+    object-fit: contain;
+}
+
+.video-container:-ms-fullscreen .btn-fullscreen {
+    bottom: 20px;
+    right: 20px;
+}
+
 .detections-panel {
     background: rgba(0, 0, 0, 0.3);
     border-radius: 10px;

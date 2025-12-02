@@ -43,7 +43,7 @@ class_colors = {}  # Diccionario {nombre_clase: (B, G, R)} para colores de bboxe
 # Diccionario de modelos disponibles
 MODELOS_DISPONIBLES = {
     'uav': 'Visdrone_yolo11n_rknn_model',  # Modelo por defecto (UAV)
-    'fuego': None,  # Por ahora None, luego agregarás la ruta
+    'fuego': 'incendio_yolo11s_rknn_model',  # Por ahora None, luego agregarás la ruta
     'personas-agua': None  # Por ahora None, luego agregarás la ruta
 }
 

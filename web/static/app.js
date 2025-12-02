@@ -45,6 +45,8 @@ const colorPalette = [
 // Elementos del DOM
 const videoFrame = document.getElementById('video-frame');
 const videoPlaceholder = document.getElementById('video-placeholder');
+const videoContainer = document.getElementById('video-container');
+const btnFullscreen = document.getElementById('btn-fullscreen');
 const btnInferencia = document.getElementById('btn-inferencia');
 const btnShutdown = document.getElementById('btn-shutdown');
 const connectionStatus = document.getElementById('connection-status');
@@ -545,6 +547,78 @@ confidenceSlider.addEventListener('input', (e) => {
     confidenceValue.textContent = value + '%';
     updateInferenceConfig();
 });
+
+// Funcionalidad de pantalla completa
+function toggleFullscreen() {
+    if (!document.fullscreenElement && 
+        !document.webkitFullscreenElement && 
+        !document.mozFullScreenElement && 
+        !document.msFullscreenElement) {
+        // Entrar en pantalla completa
+        if (videoContainer.requestFullscreen) {
+            videoContainer.requestFullscreen();
+        } else if (videoContainer.webkitRequestFullscreen) {
+            videoContainer.webkitRequestFullscreen();
+        } else if (videoContainer.mozRequestFullScreen) {
+            videoContainer.mozRequestFullScreen();
+        } else if (videoContainer.msRequestFullscreen) {
+            videoContainer.msRequestFullscreen();
+        }
+    } else {
+        // Salir de pantalla completa
+        if (document.exitFullscreen) {
+            document.exitFullscreen();
+        } else if (document.webkitExitFullscreen) {
+            document.webkitExitFullscreen();
+        } else if (document.mozCancelFullScreen) {
+            document.mozCancelFullScreen();
+        } else if (document.msExitFullscreen) {
+            document.msExitFullscreen();
+        }
+    }
+}
+
+function updateFullscreenButton() {
+    const isFullscreen = !!(document.fullscreenElement || 
+                            document.webkitFullscreenElement || 
+                            document.mozFullScreenElement || 
+                            document.msFullscreenElement);
+    
+    const enterIcon = btnFullscreen.querySelector('.fullscreen-enter');
+    const exitIcon = btnFullscreen.querySelector('.fullscreen-exit');
+    
+    if (isFullscreen) {
+        // Mostrar icono de salir
+        enterIcon.style.display = 'none';
+        exitIcon.style.display = 'block';
+        btnFullscreen.title = 'Salir de pantalla completa (ESC)';
+    } else {
+        // Mostrar icono de entrar
+        enterIcon.style.display = 'block';
+        exitIcon.style.display = 'none';
+        btnFullscreen.title = 'Pantalla completa';
+    }
+}
+
+// Event listener para el botón de pantalla completa
+if (btnFullscreen) {
+    btnFullscreen.addEventListener('click', toggleFullscreen);
+    
+    // Escuchar cambios en el estado de pantalla completa
+    document.addEventListener('fullscreenchange', updateFullscreenButton);
+    document.addEventListener('webkitfullscreenchange', updateFullscreenButton);
+    document.addEventListener('mozfullscreenchange', updateFullscreenButton);
+    document.addEventListener('MSFullscreenChange', updateFullscreenButton);
+    
+    // Permitir salir de pantalla completa con la tecla ESC (ya está implementado por defecto)
+    // También podemos agregar soporte para la tecla F11
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'F11') {
+            e.preventDefault();
+            toggleFullscreen();
+        }
+    });
+}
 
 // Cargar estado inicial
 loadStatus();
