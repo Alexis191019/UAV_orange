@@ -372,19 +372,38 @@ function createClassItem(className) {
     const color = getClassColor(className);
     const displayName = getClassDisplayName(className);
     
-    div.innerHTML = `
-        <div class="class-checkbox">
-            <input type="checkbox" id="checkbox-${className}" ${isSelected ? 'checked' : ''}>
-            <span class="checkmark"></span>
-        </div>
-        <div class="class-color" style="background-color: rgb(${color[0]}, ${color[1]}, ${color[2]})"></div>
-        <span class="class-name">${displayName}</span>
-    `;
+    // Crear estructura del checkbox
+    const checkboxContainer = document.createElement('div');
+    checkboxContainer.className = 'class-checkbox';
     
-    // Evento de cambio en el checkbox
-    const checkbox = div.querySelector('input[type="checkbox"]');
-    checkbox.addEventListener('change', (e) => {
-        const checked = e.target.checked;
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.id = `checkbox-${className.replace(/\s+/g, '-').replace(/[^a-zA-Z0-9-]/g, '')}`;
+    checkbox.checked = isSelected;
+    
+    const checkmark = document.createElement('span');
+    checkmark.className = 'checkmark';
+    
+    checkboxContainer.appendChild(checkbox);
+    checkboxContainer.appendChild(checkmark);
+    
+    // Crear color indicator
+    const colorDiv = document.createElement('div');
+    colorDiv.className = 'class-color';
+    colorDiv.style.backgroundColor = `rgb(${color[0]}, ${color[1]}, ${color[2]})`;
+    
+    // Crear nombre
+    const nameSpan = document.createElement('span');
+    nameSpan.className = 'class-name';
+    nameSpan.textContent = displayName;
+    
+    // Ensamblar elementos
+    div.appendChild(checkboxContainer);
+    div.appendChild(colorDiv);
+    div.appendChild(nameSpan);
+    
+    // Función para actualizar el estado
+    const updateSelection = (checked) => {
         if (checked) {
             // Agregar a seleccionadas si no está ya
             if (!selectedClasses.includes(className)) {
@@ -396,17 +415,51 @@ function createClassItem(className) {
         }
         // Actualizar clase visual
         div.classList.toggle('selected', checked);
+        // Sincronizar checkbox
+        checkbox.checked = checked;
         // Actualizar configuración en el backend
         updateInferenceConfig();
+    };
+    
+    // Manejar clicks en el checkbox directamente
+    const handleCheckboxChange = (e) => {
+        if (e) {
+            e.stopPropagation();
+        }
+        updateSelection(checkbox.checked);
+    };
+    
+    // Evento de cambio en el checkbox
+    checkbox.addEventListener('change', handleCheckboxChange);
+    
+    // Evento click en el checkbox (para asegurar que funcione)
+    checkbox.addEventListener('click', (e) => {
+        e.stopPropagation();
+    });
+    
+    // Evento click en el contenedor del checkbox (incluyendo el checkmark visual)
+    checkboxContainer.addEventListener('click', (e) => {
+        e.stopPropagation();
+        // Si el click fue directamente en el input, no hacer nada (ya se maneja)
+        if (e.target === checkbox) {
+            return;
+        }
+        // Si el click fue en el contenedor o checkmark, toggle el checkbox
+        checkbox.checked = !checkbox.checked;
+        handleCheckboxChange(null);
     });
     
     // Permitir hacer click en toda la fila para activar/desactivar
     div.addEventListener('click', (e) => {
-        // Solo si no se hizo click directamente en el checkbox
-        if (e.target !== checkbox && e.target !== checkbox.nextElementSibling) {
-            checkbox.checked = !checkbox.checked;
-            checkbox.dispatchEvent(new Event('change'));
+        // Si el click fue en el checkbox o su contenedor, no hacer nada
+        // (ya se maneja arriba)
+        if (checkboxContainer.contains(e.target)) {
+            return;
         }
+        
+        // Si el click fue en otra parte de la fila, toggle el checkbox
+        checkbox.checked = !checkbox.checked;
+        handleCheckboxChange(null);
     });
     
     return div;
