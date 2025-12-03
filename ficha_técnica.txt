@@ -1,0 +1,264 @@
+═══════════════════════════════════════════════════════════════════════════════
+                    FICHA TÉCNICA - AIVEX ONE
+              Edge AI Gateway para Visión Artificial en Tiempo Real
+═══════════════════════════════════════════════════════════════════════════════
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ 1. INFORMACIÓN GENERAL DEL PRODUCTO                                         │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+Nombre del Producto:        AIVEX ONE
+Modelo:                      Edge AI Gateway
+Versión:                    1.0
+Categoría:                  Dispositivo Edge Computing con IA Integrada
+Rol Principal:              Unidad de procesamiento de borde con Inteligencia 
+                            Artificial para análisis de video en tiempo real 
+                            y streaming de alta calidad.
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ 2. ESPECIFICACIONES TÉCNICAS - HARDWARE                                     │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+Procesador Central (CPU):
+    • Modelo:                Rockchip RK3588S
+    • Arquitectura:          Octa-Core (8 núcleos)
+    • Configuración:         4x Cortex-A76 (Alto rendimiento) + 
+                            4x Cortex-A55 (Eficiencia energética)
+    • Frecuencia:            Hasta 2.4 GHz
+
+Unidad de Procesamiento Neuronal (NPU):
+    • Tipo:                  NPU Integrada Rockchip
+    • Rendimiento:           Hasta 6 TOPS (Tera Operations Per Second)
+    • Optimización:          Aceleración hardware para modelos de IA
+
+Memoria (RAM):
+    • Capacidad:             4 GB LPDDR4 (configuración estándar)
+    • Opciones:              8 GB / 16 GB LPDDR4 (según configuración)
+    • Velocidad:             Alta velocidad para procesamiento en tiempo real
+
+Almacenamiento:
+    • Tipo:                  eMMC integrado / Tarjeta microSD
+    • Configuración:         Flexible según necesidades del cliente
+    • Capacidad:             Configurable (mínimo 32 GB recomendado)
+
+Sistema de Alimentación:
+    • Entrada:               12V DC (carga de batería o alimentación directa)
+    • Batería:               Integrada con sistema de gestión de energía
+    • Regulador:             Sistema de regulación automática (funciona con 
+                            batería o alimentación externa)
+    • Autonomía:             Operación portátil sin conexión a red eléctrica
+
+Conectividad de Red:
+    • Ethernet:              Puerto Gigabit (1 Gbps)
+    • Wi-Fi:                 Doble Banda (2.4 GHz / 5 GHz)
+    • Modo Access Point:     Creación de red Wi-Fi local integrada
+    • Protocolos:            TCP/IP, RTMP, HTTP/HTTPS, WebSocket
+
+Interfaces de Video:
+    • HDMI:                  Salida de video digital (monitoreo local)
+    • MIPI CSI:              Entrada para cámaras externas
+    • Procesamiento:         Hasta 4K @ 30fps (decodificación hardware)
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ 3. ESPECIFICACIONES TÉCNICAS - SOFTWARE                                     │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+Sistema Operativo:
+    • Base:                  Linux optimizado
+    • Gestión:               Inicio automático al encender el dispositivo
+
+Modelos de IA Pre-configurados:
+    • Detección UAV:          VisDrone YOLO11n (11 clases: personas, vehículos, 
+                            drones, etc.)
+    • Detección de Fuego:    Modelo especializado para incendios
+    • Detección Acuática:    Modelo para personas en agua
+    • Personalización:       Capacidad de cargar modelos personalizados
+
+Servicios Integrados:
+    • Interfaz Web:          Aplicación web en tiempo real
+    • Streaming:             Servidor RTMP integrado
+    • Comunicación:          Protocolo en tiempo real bidireccional
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ 4. CAPACIDADES Y FUNCIONALIDADES                                            │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+Procesamiento de Video:
+    • Ingesta:               Protocolo RTMP (streaming en vivo)
+    • Resolución:            640x480 (configurable hasta 4K)
+    • Frame Rate:            Hasta 30 FPS en tiempo real
+    • Latencia:              < 100 ms (procesamiento en milisegundos)
+    • Formato:               H.264 / H.265 (hardware decoding)
+
+Detección y Análisis:
+    • Selección de Clases:   Interfaz web para seleccionar objetos a detectar
+    • Threshold Ajustable:   Control de nivel de confianza (0-100%)
+    • Visualización:         Bounding boxes con colores personalizables
+    • Métricas en Tiempo Real:
+        - FPS de procesamiento
+        - Conteo de objetos por clase
+        - Latencia de inferencia
+        - Estado de conexión RTMP
+
+Interfaz de Usuario:
+    • Tipo:                  Aplicación Web Progresiva (PWA)
+    • Acceso:                Navegador web estándar (sin instalación)
+    • Características:
+        - Video en tiempo real con pantalla completa
+        - Panel de control intuitivo
+        - Selección de modelos de IA
+        - Configuración de parámetros de detección
+        - Métricas y estadísticas en vivo
+        - Control de apagado seguro del sistema
+
+Conectividad y Red:
+    • Hotspot Wi-Fi:         Red local independiente (sin internet requerido)
+    • IP Fija:               Configuración automática
+    • Acceso Remoto:         Vía navegador web desde cualquier dispositivo
+    • Streaming:             Recepción de video desde drones/cámaras IP
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ 5. ÁREAS DE APLICACIÓN                                                      │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+✓ Monitoreo de Drones (UAV):     Detección y seguimiento de objetos desde 
+                                 vista aérea en tiempo real
+
+✓ Seguridad Perimetral:         Vigilancia automatizada con detección de 
+                                 personas, vehículos y objetos
+
+✓ Inspección de Calidad:        Detección de defectos y anomalías en líneas 
+                                 de producción
+
+✓ Logística y Almacenes:         Conteo automático, seguimiento de inventario 
+                                 y gestión de almacenes
+
+✓ Detección de Incendios:        Monitoreo temprano de fuego en áreas críticas
+
+✓ Rescate Acuático:              Detección de personas en cuerpos de agua
+
+✓ Tráfico y Movilidad:           Análisis de flujo vehicular y peatonal
+
+✓ Agricultura de Precisión:      Monitoreo de cultivos y detección de plagas
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ 6. RENDIMIENTO Y ESPECIFICACIONES DE OPERACIÓN                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+Latencia de Procesamiento:
+    • Inferencia IA:         < 50 ms por frame (en NPU)
+    • Latencia Total:        < 100 ms (captura → procesamiento → visualización)
+    • Ideal para:            Aplicaciones de tiempo real críticas
+
+Velocidad de Procesamiento:
+    • FPS Máximo:            Hasta 30 FPS (depende del modelo y resolución)
+    • FPS Típico:            15-25 FPS (con detección activa)
+    • Optimización:          Procesamiento en NPU (no consume CPU principal)
+
+Consumo Energético:
+    • Alimentación:          12V DC
+    • Eficiencia:            Optimizado para operación continua
+    • Autonomía:             Depende de la capacidad de batería configurada
+
+Temperatura de Operación:
+    • Rango:                 0°C a 70°C (operación normal)
+    • Disipación:            Sistema de gestión térmica integrado
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ 7. INTEGRACIÓN Y CONECTIVIDAD                                               │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+Protocolos Soportados:
+    • RTMP:                  Recepción de streams de video en vivo
+    • HTTP/HTTPS:            Servidor web integrado
+    • TCP/IP:                Comunicación de red estándar
+
+Bases de Datos:
+    • Almacenamiento Local:  Base de datos integrada para registro de eventos
+    • Integración Externa:   Conexión opcional a sistemas de gestión externos
+    • Registro:              Eventos de detección y métricas históricas
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ 8. CONFIGURACIÓN Y PERSONALIZACIÓN                                         │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+Modelos Personalizados:
+    • Formato:               Modelos de visión artificial optimizados
+    • Carga:                 Interfaz web para selección de modelos
+    • Cambio Dinámico:       Sin reiniciar el sistema
+
+Parámetros Ajustables:
+    • Threshold de Confianza: 0-100% (control deslizante)
+    • Clases a Detectar:      Selección múltiple por checkbox
+    • Colores de Bounding Box: Asignación automática por clase
+    • Resolución de Video:     Configurable según fuente
+
+Configuración del Sistema:
+    • Inicio Automático:     Arranque automático al encender el dispositivo
+    • Hotspot Automático:    Activación automática de red Wi-Fi
+    • Persistencia:          Configuraciones guardadas automáticamente
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ 9. REQUISITOS Y COMPATIBILIDAD                                              │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+Requisitos del Cliente (Dispositivo de Acceso):
+    • Navegador Web:         Chrome, Firefox, Edge, Safari (versiones recientes)
+    • Conexión:              Wi-Fi o Ethernet (red local)
+    • Resolución Mínima:     1024x768 (recomendado 1920x1080 o superior)
+
+Fuentes de Video Compatibles:
+    • Drones con RTMP:       DJI, Autel, y otros con capacidad de streaming
+    • Cámaras IP:            Cualquier cámara con salida RTMP
+    • Software de Streaming: OBS, FFmpeg, VLC (transmisión RTMP)
+
+Formatos de Video Soportados:
+    • Codec:                 H.264 / H.265
+    • Container:             FLV (RTMP), MP4
+    • Resolución:            640x480 hasta 4K
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ 10. GARANTÍA Y SOPORTE                                                      │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+Garantía:
+    • Período:               Consultar con el distribuidor
+    • Cobertura:             Hardware y software integrado
+
+Soporte Técnico:
+    • Documentación:         Guías de instalación y configuración incluidas
+    • Actualizaciones:       Sistema de actualización de firmware/software
+    • Asistencia:            Soporte técnico especializado disponible
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ 11. DIMENSIONES Y PESO                                                      │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+Plataforma Base:
+    • Dimensiones:           Consultar especificaciones del fabricante
+    • Peso:                  Incluye sistema de batería integrado
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ 12. VENTAJAS COMPETITIVAS                                                   │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+✓ Procesamiento en el Edge:     Sin dependencia de nube o internet
+✓ Baja Latencia:                < 100 ms de procesamiento total
+✓ Autonomía Energética:         Batería integrada para operación portátil
+✓ Interfaz Intuitiva:           Sin necesidad de conocimientos técnicos avanzados
+✓ Múltiples Modelos:            Cambio dinámico entre modelos de IA
+✓ Personalización:              Configuración flexible de parámetros
+✓ Hotspot Integrado:            Funciona como red independiente
+✓ Tiempo Real:                  Procesamiento y visualización instantáneos
+✓ Escalable:                    Soporte para múltiples modelos personalizados
+✓ Robusto:                      Sistema Linux estable y confiable
+
+═══════════════════════════════════════════════════════════════════════════════
+                            FIN DE LA FICHA TÉCNICA
+═══════════════════════════════════════════════════════════════════════════════
+
+Notas:
+- Las especificaciones pueden variar según la configuración del modelo.
+- Para información actualizada y soporte técnico, contactar al distribuidor.
+- El rendimiento puede variar según el modelo de IA utilizado y la resolución 
+  del video de entrada.
