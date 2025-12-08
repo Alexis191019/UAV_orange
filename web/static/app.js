@@ -12,6 +12,16 @@ let selectedClasses = []; // Lista de nombres de clases seleccionadas
 let classColors = {}; // Diccionario {nombre_clase: [R, G, B]} para colores
 let confidenceThreshold = 0.3; // Threshold de confianza (0-1)
 
+// Variables para grabación de video
+let mediaRecorder = null;
+let recordedChunks = [];
+let recordingCanvas = null;
+let recordingContext = null;
+let recordingStream = null;
+let isRecording = false;
+let recordedFrames = []; // Almacenar frames individuales para MP4
+let recordingStartTime = null;
+
 // Traducción de clases al español
 const classTranslations = {
     'pedestrian': 'Persona',
@@ -51,6 +61,14 @@ const btnInferencia = document.getElementById('btn-inferencia');
 const btnShutdown = document.getElementById('btn-shutdown');
 const connectionStatus = document.getElementById('connection-status');
 const statusDot = connectionStatus.querySelector('.status-dot');
+
+// Crear canvas oculto para grabación
+recordingCanvas = document.createElement('canvas');
+recordingCanvas.style.display = 'none';
+recordingCanvas.width = 640;
+recordingCanvas.height = 480;
+document.body.appendChild(recordingCanvas);
+recordingContext = recordingCanvas.getContext('2d');
 
 // Elementos de métricas
 const fpsValue = document.getElementById('fps-value');
@@ -97,8 +115,44 @@ socket.on('frame', (data) => {
     
     // Mostrar frame
     if (data.frame) {
-        videoFrame.src = 'data:image/jpeg;base64,' + data.frame;
+        const frameSrc = 'data:image/jpeg;base64,' + data.frame;
+        videoFrame.src = frameSrc;
         videoPlaceholder.style.display = 'none';
+        
+        // Si estamos grabando, capturar el frame en el canvas
+        if (isRecording && recordingContext) {
+            const img = new Image();
+            img.crossOrigin = 'anonymous'; // Permitir CORS si es necesario
+            img.onload = () => {
+                try {
+                    // Limpiar canvas antes de dibujar
+                    recordingContext.clearRect(0, 0, recordingCanvas.width, recordingCanvas.height);
+                    // Dibujar el frame en el canvas
+                    recordingContext.drawImage(img, 0, 0, recordingCanvas.width, recordingCanvas.height);
+                    
+                    // Si usamos MediaRecorder, ya está grabando automáticamente
+                    // Si no, guardar frame individual para MP4
+                    if (!mediaRecorder || mediaRecorder.state !== 'recording') {
+                        // Guardar frame como imagen para luego crear MP4
+                        const timestamp = Date.now() - (recordingStartTime || Date.now());
+                        recordingCanvas.toBlob((blob) => {
+                            if (blob) {
+                                recordedFrames.push({
+                                    blob: blob,
+                                    timestamp: timestamp
+                                });
+                            }
+                        }, 'image/jpeg', 0.92);
+                    }
+                } catch (error) {
+                    console.error('Error al dibujar frame en canvas:', error);
+                }
+            };
+            img.onerror = () => {
+                console.error('Error al cargar imagen para grabación');
+            };
+            img.src = frameSrc;
+        }
     } else {
         videoPlaceholder.textContent = 'Esperando video...';
         videoPlaceholder.style.display = 'block';
@@ -154,6 +208,256 @@ function updateDetections(detecciones) {
     detectionsContent.textContent = texto;
 }
 
+// Funciones de grabación de video
+function startRecording() {
+    if (isRecording) {
+        console.log('Ya se está grabando');
+        return;
+    }
+    
+    try {
+        // Verificar soporte de MediaRecorder
+        if (!navigator.mediaDevices || !MediaRecorder) {
+            alert('Tu navegador no soporta la grabación de video. Por favor, usa Chrome, Firefox o Edge.');
+            return;
+        }
+        
+        recordedChunks = [];
+        
+        // Asegurar que el canvas tenga el tamaño correcto
+        if (videoFrame.complete && videoFrame.naturalWidth > 0) {
+            // Si la imagen ya está cargada, usar su tamaño real
+            recordingCanvas.width = videoFrame.naturalWidth || 640;
+            recordingCanvas.height = videoFrame.naturalHeight || 480;
+        } else {
+            // Usar tamaño por defecto
+            recordingCanvas.width = 640;
+            recordingCanvas.height = 480;
+        }
+        
+        // Obtener stream del canvas (ajustar FPS según el stream real)
+        const fps = 30; // FPS de grabación
+        recordingStream = recordingCanvas.captureStream(fps);
+        
+        // Configurar MediaRecorder
+        const options = {
+            mimeType: 'video/webm;codecs=vp9',
+            videoBitsPerSecond: 2500000 // 2.5 Mbps
+        };
+        
+        // Intentar con codec vp9, si falla usar vp8
+        if (!MediaRecorder.isTypeSupported(options.mimeType)) {
+            options.mimeType = 'video/webm;codecs=vp8';
+        }
+        
+        // Si vp8 tampoco está disponible, usar el tipo por defecto
+        if (!MediaRecorder.isTypeSupported(options.mimeType)) {
+            options.mimeType = 'video/webm';
+        }
+        
+        mediaRecorder = new MediaRecorder(recordingStream, options);
+        
+        mediaRecorder.ondataavailable = (event) => {
+            if (event.data && event.data.size > 0) {
+                recordedChunks.push(event.data);
+            }
+        };
+        
+        mediaRecorder.onstop = () => {
+            console.log('MediaRecorder detenido. Chunks guardados:', recordedChunks.length);
+        };
+        
+        mediaRecorder.onerror = (event) => {
+            console.error('Error en MediaRecorder:', event.error);
+            alert('Error al grabar video: ' + (event.error?.message || 'Error desconocido'));
+            stopRecording();
+        };
+        
+        // Iniciar grabación
+        mediaRecorder.start(1000); // Capturar datos cada segundo
+        isRecording = true;
+        recordingStartTime = Date.now();
+        recordedFrames = []; // Limpiar frames anteriores
+        console.log('Grabación iniciada - Resolución:', recordingCanvas.width, 'x', recordingCanvas.height);
+        
+    } catch (error) {
+        console.error('Error al iniciar grabación:', error);
+        alert('No se pudo iniciar la grabación de video: ' + error.message);
+        isRecording = false;
+    }
+}
+
+function stopRecording() {
+    if (!isRecording || !mediaRecorder) return;
+    
+    try {
+        if (mediaRecorder.state !== 'inactive') {
+            mediaRecorder.stop();
+        }
+        
+        if (recordingStream) {
+            recordingStream.getTracks().forEach(track => track.stop());
+            recordingStream = null;
+        }
+        
+        isRecording = false;
+        console.log('Grabación detenida');
+        
+    } catch (error) {
+        console.error('Error al detener grabación:', error);
+        isRecording = false;
+    }
+}
+
+async function downloadVideo() {
+    if (recordedChunks.length === 0 && recordedFrames.length === 0) {
+        alert('No hay video grabado para descargar');
+        return;
+    }
+    
+    try {
+        // Mostrar mensaje de procesamiento
+        const processingMsg = document.createElement('div');
+        processingMsg.style.cssText = 'position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(0,0,0,0.8); color: white; padding: 20px; border-radius: 10px; z-index: 10000; text-align: center;';
+        processingMsg.innerHTML = 'Convirtiendo video a MP4 en el servidor...<br>Por favor espera.';
+        document.body.appendChild(processingMsg);
+        
+        // Si tenemos chunks de MediaRecorder, enviar al servidor para conversión
+        if (recordedChunks.length > 0) {
+            const webmBlob = new Blob(recordedChunks, { type: 'video/webm' });
+            
+            // Crear FormData para enviar el video
+            const formData = new FormData();
+            formData.append('video', webmBlob, 'recording.webm');
+            
+            try {
+                // Enviar al servidor para conversión
+                const response = await fetch('/api/video/convert', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                if (response.ok) {
+                    // El servidor envía el MP4 directamente como descarga
+                    const blob = await response.blob();
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    
+                    // Obtener nombre del archivo del header Content-Disposition o generar uno
+                    const contentDisposition = response.headers.get('Content-Disposition');
+                    let filename = 'deteccion-uav.mp4';
+                    if (contentDisposition) {
+                        const filenameMatch = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
+                        if (filenameMatch && filenameMatch[1]) {
+                            filename = filenameMatch[1].replace(/['"]/g, '');
+                        }
+                    }
+                    
+                    a.download = filename;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    
+                    // Liberar URL
+                    setTimeout(() => {
+                        URL.revokeObjectURL(url);
+                    }, 100);
+                    
+                    // Remover mensaje de procesamiento
+                    document.body.removeChild(processingMsg);
+                    
+                    // Limpiar
+                    recordedChunks = [];
+                    recordedFrames = [];
+                    
+                    console.log('Video descargado en formato MP4');
+                    return;
+                } else {
+                    // Error en el servidor
+                    const errorData = await response.json().catch(() => ({ error: 'Error desconocido' }));
+                    throw new Error(errorData.error || 'Error al convertir video en el servidor');
+                }
+            } catch (error) {
+                console.error('Error al convertir video:', error);
+                document.body.removeChild(processingMsg);
+                
+                // Si falla la conversión, ofrecer descargar como WebM
+                const userAgent = navigator.userAgent;
+                const isIOS = /iPad|iPhone|iPod/.test(userAgent);
+                
+                if (isIOS) {
+                    const message = 'No se pudo convertir a MP4 en el servidor.\n\n' +
+                                  'El video se descargará como WebM (formato no nativo en iPad).\n\n' +
+                                  'Opciones para verlo en iPad:\n' +
+                                  '1. Usar la app "WebM Video Reader MP4 Convert" (gratis en App Store)\n' +
+                                  '2. Convertir online usando un servicio como cloudconvert.com\n' +
+                                  '3. Transferir a una computadora y convertir allí\n\n' +
+                                  '¿Deseas descargarlo como WebM de todas formas?';
+                    
+                    if (confirm(message)) {
+                        downloadBlob(webmBlob, 'webm');
+                    }
+                } else {
+                    alert('Error al convertir video: ' + error.message + '\n\nSe descargará como WebM.');
+                    downloadBlob(webmBlob, 'webm');
+                }
+                return;
+            }
+        } else {
+            // No hay chunks, solo frames (no debería pasar con MediaRecorder)
+            document.body.removeChild(processingMsg);
+            alert('No se pudo crear el video. Por favor intenta de nuevo.');
+        }
+        
+    } catch (error) {
+        console.error('Error al descargar video:', error);
+        alert('Error al descargar el video: ' + error.message);
+    }
+}
+
+async function createMP4FromFrames(frames) {
+    // Esta función crearía un MP4 desde frames individuales
+    // Por ahora, retornamos null ya que requiere una librería compleja
+    // La mejor solución es usar ffmpeg.wasm o procesar en el servidor
+    console.log('Crear MP4 desde frames no está implementado aún');
+    return null;
+}
+
+function downloadBlob(blob, extension) {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    
+    // Generar nombre de archivo con fecha y hora
+    const now = new Date();
+    const timestamp = now.toISOString().replace(/[:.]/g, '-').slice(0, -5);
+    a.download = `deteccion-uav-${timestamp}.${extension}`;
+    
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    
+    // Liberar URL después de un tiempo
+    setTimeout(() => {
+        URL.revokeObjectURL(url);
+    }, 100);
+}
+
+async function convertWebMToMP4(webmBlob) {
+    // Nota: La conversión real de WebM a MP4 en el navegador requiere ffmpeg.wasm
+    // que es una librería grande (~20MB). Por ahora, retornamos null y el usuario
+    // puede descargar como WebM o usar una app de conversión en iPad.
+    
+    // Para una solución completa, se recomienda:
+    // 1. Usar ffmpeg.wasm (pesado pero completo)
+    // 2. Procesar la conversión en el servidor
+    // 3. Usar una app de conversión en el dispositivo del cliente
+    
+    console.log('Conversión WebM a MP4 requiere ffmpeg.wasm o procesamiento en servidor');
+    return null;
+}
+
 // Funciones de API
 async function startInference() {
     try {
@@ -166,6 +470,10 @@ async function startInference() {
             inferenceActive = true;
             btnInferencia.textContent = 'Detener Inferencia';
             btnInferencia.classList.add('active');
+            
+            // Iniciar grabación automáticamente
+            startRecording();
+            
             console.log('Inferencia iniciada');
         } else {
             alert('Error: ' + (data.error || 'No se pudo iniciar la inferencia'));
@@ -178,6 +486,9 @@ async function startInference() {
 
 async function stopInference() {
     try {
+        // Detener grabación primero
+        stopRecording();
+        
         const response = await fetch('/api/inference/stop', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' }
@@ -189,6 +500,27 @@ async function stopInference() {
             btnInferencia.classList.remove('active');
             updateDetections({}); // Limpiar detecciones
             console.log('Inferencia detenida');
+            
+            // Esperar un momento para que MediaRecorder termine de procesar
+            setTimeout(() => {
+                // Mostrar diálogo para guardar video
+                if (recordedChunks.length > 0) {
+                    const saveVideo = confirm(
+                        '¿Deseas guardar el video de las detecciones?\n\n' +
+                        'El video se descargará en tu dispositivo.'
+                    );
+                    
+                    if (saveVideo) {
+                        downloadVideo();
+                    } else {
+                        // Limpiar chunks si no quiere guardar
+                        recordedChunks = [];
+                    }
+                } else {
+                    console.log('No hay video grabado para guardar');
+                }
+            }, 1000); // Aumentar tiempo de espera para asegurar que MediaRecorder termine
+            
         } else {
             alert('Error: ' + (data.error || 'No se pudo detener la inferencia'));
         }
@@ -619,6 +951,13 @@ if (btnFullscreen) {
         }
     });
 }
+
+// Limpiar grabación si el usuario cierra la página
+window.addEventListener('beforeunload', () => {
+    if (isRecording) {
+        stopRecording();
+    }
+});
 
 // Cargar estado inicial
 loadStatus();

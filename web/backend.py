@@ -6,7 +6,9 @@ import time
 import cv2
 import base64
 import os
-from flask import Flask, jsonify, request, send_from_directory
+import tempfile
+import subprocess
+from flask import Flask, jsonify, request, send_from_directory, send_file
 from flask_cors import CORS
 from flask_socketio import SocketIO, emit
 import sys
@@ -555,6 +557,149 @@ def config_inference():
         return jsonify({"error": str(exc)}), 500
 
 
+@app.route('/api/video/convert', methods=['POST'])
+def convert_video_to_mp4():
+    """Convierte un video WebM a MP4 y lo envía al cliente, luego elimina los archivos temporales."""
+    try:
+        # Verificar que se envió un archivo
+        if 'video' not in request.files:
+            return jsonify({'error': 'No se recibió ningún archivo de video'}), 400
+        
+        video_file = request.files['video']
+        
+        if video_file.filename == '':
+            return jsonify({'error': 'Archivo vacío'}), 400
+        
+        # Crear directorio temporal si no existe
+        temp_dir = os.path.join(BASE_DIR, 'temp_videos')
+        os.makedirs(temp_dir, exist_ok=True)
+        
+        # Generar nombres únicos para los archivos temporales
+        import uuid
+        unique_id = str(uuid.uuid4())
+        webm_path = os.path.join(temp_dir, f'temp_{unique_id}.webm')
+        mp4_path = os.path.join(temp_dir, f'temp_{unique_id}.mp4')
+        
+        try:
+            # Guardar el archivo WebM temporalmente
+            video_file.save(webm_path)
+            print(f"[INFO] Video WebM recibido: {webm_path}")
+            
+            # Convertir WebM a MP4 usando ffmpeg
+            print(f"[INFO] Convirtiendo a MP4...")
+            ffmpeg_cmd = [
+                'ffmpeg',
+                '-i', webm_path,
+                '-c:v', 'libx264',
+                '-preset', 'fast',
+                '-crf', '23',
+                '-c:a', 'aac',
+                '-b:a', '128k',
+                '-movflags', '+faststart',  # Optimizar para streaming
+                '-y',  # Sobrescribir si existe
+                mp4_path
+            ]
+            
+            result = subprocess.run(
+                ffmpeg_cmd,
+                capture_output=True,
+                text=True,
+                timeout=300  # Timeout de 5 minutos
+            )
+            
+            if result.returncode != 0:
+                print(f"[ERROR] Error en conversión ffmpeg: {result.stderr}")
+                # Limpiar archivo WebM
+                if os.path.exists(webm_path):
+                    os.remove(webm_path)
+                return jsonify({'error': 'Error al convertir video: ' + result.stderr[:200]}), 500
+            
+            if not os.path.exists(mp4_path):
+                print(f"[ERROR] El archivo MP4 no se creó")
+                # Limpiar archivo WebM
+                if os.path.exists(webm_path):
+                    os.remove(webm_path)
+                return jsonify({'error': 'No se pudo crear el archivo MP4'}), 500
+            
+            print(f"[OK] Video convertido: {mp4_path}")
+            
+            # Generar nombre de archivo para descarga
+            from datetime import datetime
+            timestamp = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
+            download_filename = f'deteccion-uav-{timestamp}.mp4'
+            
+            # Enviar el archivo MP4 al cliente
+            def remove_files():
+                """Función para eliminar archivos temporales después de enviar."""
+                try:
+                    if os.path.exists(webm_path):
+                        os.remove(webm_path)
+                        print(f"[INFO] Archivo WebM eliminado: {webm_path}")
+                    if os.path.exists(mp4_path):
+                        os.remove(mp4_path)
+                        print(f"[INFO] Archivo MP4 eliminado: {mp4_path}")
+                except Exception as e:
+                    print(f"[WARN] Error al eliminar archivos temporales: {e}")
+            
+            # Usar send_file para enviar el MP4
+            response = send_file(
+                mp4_path,
+                mimetype='video/mp4',
+                as_attachment=True,
+                download_name=download_filename
+            )
+            
+            # Programar limpieza después de enviar (en un hilo separado con delay)
+            def delayed_cleanup():
+                time.sleep(10)  # Esperar 10 segundos para asegurar que el archivo se descargó
+                try:
+                    if os.path.exists(webm_path):
+                        os.remove(webm_path)
+                        print(f"[INFO] Archivo WebM eliminado: {webm_path}")
+                    if os.path.exists(mp4_path):
+                        os.remove(mp4_path)
+                        print(f"[INFO] Archivo MP4 eliminado: {mp4_path}")
+                except Exception as e:
+                    print(f"[WARN] Error al eliminar archivos temporales: {e}")
+            
+            cleanup_thread = threading.Thread(target=delayed_cleanup, daemon=True)
+            cleanup_thread.start()
+            
+            return response
+            
+        except subprocess.TimeoutExpired:
+            print(f"[ERROR] Timeout al convertir video")
+            # Limpiar archivos
+            if os.path.exists(webm_path):
+                os.remove(webm_path)
+            if os.path.exists(mp4_path):
+                os.remove(mp4_path)
+            return jsonify({'error': 'Timeout al convertir video (muy largo)'}), 500
+            
+        except Exception as e:
+            print(f"[ERROR] Error en conversión: {e}")
+            import traceback
+            traceback.print_exc()
+            # Limpiar archivos en caso de error
+            if os.path.exists(webm_path):
+                try:
+                    os.remove(webm_path)
+                except:
+                    pass
+            if os.path.exists(mp4_path):
+                try:
+                    os.remove(mp4_path)
+                except:
+                    pass
+            return jsonify({'error': f'Error al procesar video: {str(e)}'}), 500
+            
+    except Exception as e:
+        print(f"[ERROR] Error en endpoint de conversión: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': 'Error interno del servidor'}), 500
+
+
 @app.route('/api/shutdown', methods=['POST'])
 def shutdown_system():
     """Apaga la Orange Pi de forma segura."""
@@ -616,6 +761,30 @@ def handle_disconnect():
     print(f"[INFO] Cliente WebSocket desconectado: {request.remote_addr}")
 
 
+def cleanup_temp_videos():
+    """Limpia archivos temporales de video antiguos (más de 1 hora)."""
+    try:
+        temp_dir = os.path.join(BASE_DIR, 'temp_videos')
+        if not os.path.exists(temp_dir):
+            return
+        
+        current_time = time.time()
+        max_age = 3600  # 1 hora en segundos
+        
+        for filename in os.listdir(temp_dir):
+            file_path = os.path.join(temp_dir, filename)
+            try:
+                if os.path.isfile(file_path):
+                    file_age = current_time - os.path.getmtime(file_path)
+                    if file_age > max_age:
+                        os.remove(file_path)
+                        print(f"[INFO] Archivo temporal antiguo eliminado: {filename}")
+            except Exception as e:
+                print(f"[WARN] Error al eliminar archivo temporal {filename}: {e}")
+    except Exception as e:
+        print(f"[WARN] Error en limpieza de archivos temporales: {e}")
+
+
 def cleanup():
     """Limpia recursos al cerrar."""
     global stop_event, lector_thread, cap, writer, mediamtx_proc
@@ -635,9 +804,20 @@ def cleanup():
     if mediamtx_proc is not None:
         detener_mediamtx(mediamtx_proc)
     
+    # Limpiar archivos temporales de video
+    cleanup_temp_videos()
+    
     # No bajamos el hotspot automáticamente (puede estar en uso)
     print("[INFO] Servidor web cerrado")
 
+
+# Limpieza periódica de archivos temporales (cada 30 minutos)
+def periodic_cleanup():
+    """Ejecuta limpieza periódica de archivos temporales."""
+    while not stop_event.is_set():
+        time.sleep(1800)  # 30 minutos
+        if not stop_event.is_set():
+            cleanup_temp_videos()
 
 if __name__ == '__main__':
     try:

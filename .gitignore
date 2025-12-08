@@ -64,3 +64,7 @@ desktop.ini
 *.bak
 *.cache
 
+# Videos temporales de conversión
+temp_videos/
+web/temp_videos/
+
