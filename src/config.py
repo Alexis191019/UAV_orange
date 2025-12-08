@@ -30,7 +30,7 @@ MODEL_PATH = "Visdrone_yolo11n_rknn_model"
 # Alternativa si el modelo es un archivo específico:
 # MODEL_PATH = "Visdrone_yolo11n_rknn_model/modelo.rknn"  # o .pt
 CONF_THRESH = 0.3
-MODEL_IMGSZ = 640
+MODEL_IMGSZ = 1024 # 640 es el tamaño por defecto de los modelos de yolo, pero se puede aumentar para mejor precisión
 FRAME_SIZE = (640, 480)
 
 # Configuración de salida de video
